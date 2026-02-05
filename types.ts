@@ -16,12 +16,16 @@ export interface User {
 export interface Agent {
   id: AgentId;
   name: string;
+  nameKey?: string;
   fullName: string;
+  fullNameKey?: string;
   description: string;
+  descriptionKey?: string;
   icon: string;
   color: string;
   bgColor: string;
   primaryFunc: string;
+  primaryFuncKey?: string;
   instruction: string;
   minRole?: Role;
 }

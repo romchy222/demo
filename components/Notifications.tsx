@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Notification, User } from '../types';
 import { db } from '../services/dbService';
+import { useT } from '../i18n/i18n';
 
 interface NotificationsProps {
   user: User;
@@ -13,6 +14,7 @@ function severityBadge(severity?: Notification['severity']) {
 }
 
 export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
+  const t = useT();
   const [items, setItems] = useState<Notification[]>(() => db.notifications.findByUser(user.id));
 
   const unreadCount = useMemo(() => items.filter(n => !n.isRead).length, [items]);
@@ -37,9 +39,10 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Уведомления</h1>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">{t('notifications.title')}</h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Важные объявления, приказы и системные события. Непрочитано: <span className="font-black">{unreadCount}</span>
+            {t('notifications.subtitle')}{' '}
+            <span className="font-black">{unreadCount}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -50,7 +53,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
               unreadCount === 0 ? 'bg-slate-200 text-slate-400' : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
             }`}
           >
-            <i className="fas fa-check-double mr-2"></i> Отметить все прочитанным
+            <i className="fas fa-check-double mr-2"></i> {t('notifications.markAllRead')}
           </button>
         </div>
       </div>
@@ -59,7 +62,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
         {items.length === 0 ? (
           <div className="p-12 text-center text-slate-400">
             <i className="fas fa-bell-slash text-6xl mb-4"></i>
-            <p className="text-sm font-bold">Уведомлений нет</p>
+            <p className="text-sm font-bold">{t('notifications.none')}</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-50">
@@ -95,7 +98,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
                       onClick={() => markRead(n.id)}
                       className="px-3 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700"
                     >
-                      Прочитано
+                      {t('notifications.read')}
                     </button>
                   )}
                   {n.link && (
@@ -105,7 +108,7 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
                       rel="noreferrer"
                       className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700"
                     >
-                      Открыть
+                      {t('notifications.open')}
                     </a>
                   )}
                 </div>

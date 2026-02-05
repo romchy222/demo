@@ -12,6 +12,8 @@ import { Notifications } from './components/Notifications';
 import { VacanciesPanel } from './components/VacanciesPanel';
 import { Home } from './components/Home';
 import { db } from './services/dbService';
+import { useI18n } from './i18n/i18n';
+import { LanguageSelect } from './components/LanguageSelect';
 
 // Защищенный маршрут
 const ProtectedRoute: React.FC<{ children: React.ReactNode; user: User | null; minRole?: string }> = ({ children, user, minRole }) => {
@@ -41,6 +43,7 @@ const AuthRoute: React.FC<{ user: User | null; onLogin: (u: User) => void }> = (
 };
 
 const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => void }> = ({ user, activeAgentId, onLogout }) => {
+  const { t } = useI18n();
   const unreadNotifications = db.notifications.countUnread(user.id);
 
   return (
@@ -59,7 +62,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
       
       <div className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
         <div className="px-4 pb-4">
-            <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">Навигация</div>
+            <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2">{t('nav.navigation')}</div>
              <Link
               to="/app"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
@@ -69,7 +72,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
               }`}
             >
                 <i className="fas fa-th-large w-5"></i>
-                Дашборд
+                {t('nav.dashboard')}
             </Link>
 
             <Link
@@ -82,7 +85,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
             >
               <span className="flex items-center gap-3">
                 <i className="fas fa-bell w-5"></i>
-                Уведомления
+                {t('nav.notifications')}
               </span>
               {unreadNotifications > 0 && (
                 <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black">
@@ -100,16 +103,17 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
               }`}
             >
               <i className="fas fa-folder-open w-5"></i>
-              Документы
+              {t('nav.docs')}
             </Link>
         </div>
 
-        <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 mt-4">Нейро-Агенты</p>
+        <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 mt-4">{t('nav.neuroAgents')}</p>
         {AGENTS.map((agent) => {
           const roles = ['STUDENT', 'ALUMNI', 'FACULTY', 'ADMIN'];
           const userIdx = roles.indexOf(user.role);
           const minIdx = agent.minRole ? roles.indexOf(agent.minRole) : -1;
           const hasAccess = userIdx >= minIdx;
+          const agentName = t(agent.nameKey ?? '', undefined, agent.name);
 
           return (
             <Link
@@ -127,7 +131,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
               }`}>
                 <i className={`fas ${agent.icon} text-[10px]`}></i>
               </div>
-              {agent.name}
+              {agentName}
               {activeAgentId === agent.id && <div className="absolute right-0 top-0 h-full w-1 bg-amber-500"></div>}
             </Link>
           );
@@ -135,7 +139,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
         
         {user.role === 'ADMIN' && (
           <div className="pt-8">
-            <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Управление</p>
+            <p className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">{t('nav.management')}</p>
             <Link
               to="/admin"
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
@@ -145,13 +149,16 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
               }`}
             >
               <i className="fas fa-server w-5"></i>
-              Системный монитор
+              {t('nav.systemMonitor')}
             </Link>
           </div>
         )}
       </div>
 
       <div className="p-6 border-t border-white/5 bg-slate-900/50 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <LanguageSelect className="shrink-0" variant="dark" />
+        </div>
         <Link to="/profile" className={`block bg-slate-800 rounded-2xl p-4 border border-white/5 hover:bg-slate-700 transition-all group`}>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden border-2 border-slate-500 group-hover:border-amber-500 transition-colors">
@@ -167,7 +174,7 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
           onClick={onLogout}
           className="w-full mt-3 py-2 text-[10px] font-black text-slate-500 hover:text-rose-500 uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
         >
-          <i className="fas fa-sign-out-alt"></i> Выйти из системы
+          <i className="fas fa-sign-out-alt"></i> {t('nav.logout')}
         </button>
       </div>
     </div>
@@ -204,6 +211,7 @@ const DashboardWidget: React.FC<{
  };
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
+    const { t } = useI18n();
     const notifications = db.notifications.findByUser(user.id);
     const unreadNotifications = notifications.filter(n => !n.isRead).length;
     const latestNotification = notifications[0];
@@ -221,29 +229,28 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
                     <div>
                         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-md mb-6">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span className="text-[10px] font-bold text-white uppercase tracking-widest">Цифровой кампус онлайн</span>
+                            <span className="text-[10px] font-bold text-white uppercase tracking-widest">{t('dashboard.digitalCampusOnline')}</span>
                         </div>
                         <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight leading-[1.1]">
-                            Добро пожаловать,<br/>
+                            {t('dashboard.welcome')}<br/>
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-400">{user.name}</span>
                         </h1>
                         <p className="text-slate-400 mt-4 text-sm font-medium max-w-lg leading-relaxed">
-                            Интеллектуальная система Университета Болашак готова к работе. 
-                            Используйте голосовой ввод или загрузку документов для взаимодействия с сервисами.
+                            {t('dashboard.heroText')}
                         </p>
                         
                         <div className="mt-8 flex gap-4">
                             <button className="px-6 py-3 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-amber-400 transition-colors shadow-lg">
-                                <i className="fas fa-play mr-2"></i> Быстрый старт
+                                <i className="fas fa-play mr-2"></i> {t('dashboard.quickStart')}
                             </button>
                             <button className="px-6 py-3 bg-white/5 text-white border border-white/10 rounded-xl font-bold text-sm hover:bg-white/10 transition-colors">
-                                <i className="fas fa-file-alt mr-2"></i> Мои справки
+                                <i className="fas fa-file-alt mr-2"></i> {t('dashboard.myCertificates')}
                             </button>
                         </div>
                     </div>
                     <div className="hidden lg:block">
                         <div className="bg-white/10 backdrop-blur-md border border-white/10 p-6 rounded-2xl w-64">
-                            <h3 className="text-white text-xs font-bold uppercase tracking-widest mb-4">Текущий статус</h3>
+                            <h3 className="text-white text-xs font-bold uppercase tracking-widest mb-4">{t('dashboard.currentStatus')}</h3>
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center text-sm">
                                     <span className="text-slate-300">GPA</span>
@@ -253,7 +260,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
                                     <div className="h-full bg-emerald-400 w-[92%]"></div>
                                 </div>
                                 <div className="flex justify-between items-center text-sm">
-                                    <span className="text-slate-300">Посещаемость</span>
+                                    <span className="text-slate-300">{t('dashboard.attendance')}</span>
                                     <span className="font-bold text-white">96%</span>
                                 </div>
                                 <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
@@ -268,33 +275,33 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
             {/* Widgets Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <DashboardWidget 
-                    title="Уведомления" 
+                    title={t('nav.notifications')} 
                     icon="fa-bell" 
-                    value={unreadNotifications > 0 ? `${unreadNotifications} новых` : 'Нет'} 
-                    subtext={latestNotification ? latestNotification.title : 'Нет уведомлений'} 
+                    value={unreadNotifications > 0 ? t('dashboard.widget.newCount', { count: unreadNotifications }) : t('dashboard.widget.none')} 
+                    subtext={latestNotification ? latestNotification.title : t('dashboard.widget.noNotifications')} 
                     color={unreadNotifications > 0 ? 'bg-rose-500' : 'bg-emerald-500'} 
                     to="/notifications"
                 />
                 <DashboardWidget 
-                    title="Расписание" 
+                    title={t('dashboard.widget.schedule')} 
                     icon="fa-calendar-alt" 
                     value="14:30" 
-                    subtext="Лекция: Основы ИИ (Ауд. 205)" 
+                    subtext={t('dashboard.widget.lectureExample')} 
                     color="bg-indigo-500" 
                 />
                 <DashboardWidget 
-                    title="Дедлайны" 
+                    title={t('dashboard.widget.deadlines')} 
                     icon="fa-clock" 
-                    value="2 Дня" 
-                    subtext="Сдача курсовой работы" 
+                    value={t('dashboard.widget.days2')} 
+                    subtext={t('dashboard.widget.courseworkExample')} 
                     color="bg-amber-500"
-                    trend="Важно"
+                    trend={t('dashboard.widget.important')}
                 />
                  <DashboardWidget 
-                    title="Документы" 
+                    title={t('nav.docs')} 
                     icon="fa-folder-open" 
                     value={`${docsCount}`} 
-                    subtext={docsCount > 0 ? "Можно подключить в чате" : "Добавьте документы в базу"} 
+                    subtext={docsCount > 0 ? t('dashboard.widget.docsAttachable') : t('dashboard.widget.docsAddToBase')} 
                     color="bg-sky-500" 
                     to="/docs"
                 />
@@ -303,8 +310,8 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
             {/* Agents Grid */}
             <div>
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-slate-800">Доступные сервисы</h2>
-                    <button className="text-xs font-bold text-slate-400 hover:text-amber-500 uppercase tracking-widest">Показать все</button>
+                    <h2 className="text-xl font-bold text-slate-800">{t('dashboard.availableServices')}</h2>
+                    <button className="text-xs font-bold text-slate-400 hover:text-amber-500 uppercase tracking-widest">{t('dashboard.showAll')}</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {AGENTS.map(agent => (
@@ -321,13 +328,13 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
                                     <i className="fas fa-arrow-right text-xs"></i>
                                 </div>
                             </div>
-                            <h3 className="text-lg font-black text-slate-800 tracking-tight mb-2">{agent.name}</h3>
-                            <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2 flex-1">{agent.description}</p>
+                            <h3 className="text-lg font-black text-slate-800 tracking-tight mb-2">{t(agent.nameKey ?? '', undefined, agent.name)}</h3>
+                            <p className="text-xs text-slate-500 leading-relaxed font-medium line-clamp-2 flex-1">{t(agent.descriptionKey ?? '', undefined, agent.description)}</p>
                             
                             {agent.id === 'kadr' && (
                                 <div className="mt-4 inline-flex items-center gap-2 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100 w-fit">
                                     <i className="fas fa-check-circle text-emerald-500 text-[10px]"></i>
-                                    <span className="text-[10px] font-bold text-emerald-700">Доступно студентам</span>
+                                    <span className="text-[10px] font-bold text-emerald-700">{t('dashboard.availableToStudents')}</span>
                                 </div>
                             )}
                         </Link>
@@ -339,6 +346,7 @@ const Dashboard: React.FC<{ user: User }> = ({ user }) => {
 };
 
 const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: string; onLogout: () => void; hideHeader?: boolean; contentClassName?: string }> = ({ children, user, currentId, onLogout, hideHeader, contentClassName }) => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [globalQuery, setGlobalQuery] = useState('');
   const [isGlobalOpen, setIsGlobalOpen] = useState(false);
@@ -350,11 +358,11 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
     const items: { key: string; title: string; subtitle?: string; icon: string; to: string }[] = [];
 
     const routes: Array<{ key: string; title: string; subtitle?: string; icon: string; to: string; when?: boolean }> = [
-      { key: 'route_app', title: 'Дашборд', subtitle: 'Главная панель', icon: 'fa-th-large', to: '/app', when: true },
-      { key: 'route_docs', title: 'Документы', subtitle: 'База знаний', icon: 'fa-folder-open', to: `/docs?q=${encodeURIComponent(q)}`, when: true },
-      { key: 'route_notifications', title: 'Уведомления', subtitle: 'Центр уведомлений', icon: 'fa-bell', to: '/notifications', when: true },
-      { key: 'route_profile', title: 'Профиль', subtitle: 'Аккаунт и роль', icon: 'fa-user', to: '/profile', when: true },
-      { key: 'route_admin', title: 'Системный монитор', subtitle: 'Админ-панель', icon: 'fa-server', to: '/admin', when: user.role === 'ADMIN' }
+      { key: 'route_app', title: t('nav.dashboard'), subtitle: t('route.subtitle.dashboard'), icon: 'fa-th-large', to: '/app', when: true },
+      { key: 'route_docs', title: t('nav.docs'), subtitle: t('route.subtitle.docs'), icon: 'fa-folder-open', to: `/docs?q=${encodeURIComponent(q)}`, when: true },
+      { key: 'route_notifications', title: t('nav.notifications'), subtitle: t('route.subtitle.notifications'), icon: 'fa-bell', to: '/notifications', when: true },
+      { key: 'route_profile', title: t('nav.profile'), subtitle: t('route.subtitle.profile'), icon: 'fa-user', to: '/profile', when: true },
+      { key: 'route_admin', title: t('nav.systemMonitor'), subtitle: t('route.subtitle.admin'), icon: 'fa-server', to: '/admin', when: user.role === 'ADMIN' }
     ];
 
     for (const r of routes) {
@@ -364,12 +372,16 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
     }
 
     for (const a of AGENTS) {
-      const hay = `${a.name} ${a.fullName} ${a.description} ${a.primaryFunc}`.toLowerCase();
+      const name = t(a.nameKey ?? '', undefined, a.name);
+      const fullName = t(a.fullNameKey ?? '', undefined, a.fullName);
+      const description = t(a.descriptionKey ?? '', undefined, a.description);
+      const primaryFunc = t(a.primaryFuncKey ?? '', undefined, a.primaryFunc);
+      const hay = `${name} ${fullName} ${description} ${primaryFunc}`.toLowerCase();
       if (!hay.includes(q)) continue;
       items.push({
         key: `agent_${a.id}`,
-        title: a.name,
-        subtitle: a.fullName,
+        title: name,
+        subtitle: fullName,
         icon: a.icon,
         to: `/agent/${a.id}`
       });
@@ -382,7 +394,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
       items.push({
         key: `doc_${d.id}`,
         title: d.title,
-        subtitle: 'Документ',
+        subtitle: t('route.subtitle.document'),
         icon: 'fa-file-lines',
         to: `/docs?doc=${encodeURIComponent(d.id)}&q=${encodeURIComponent(q)}`
       });
@@ -404,7 +416,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
     }
 
     return items.slice(0, 10);
-  }, [globalQuery, user.id, user.role]);
+  }, [globalQuery, t, user.id, user.role]);
 
   const runGlobalNavigate = (to: string) => {
     navigate(to);
@@ -426,7 +438,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
                 <i className="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                 <input 
                     type="text" 
-                    placeholder="Найти сервис, документ или человека..." 
+                    placeholder={t('dashboard.searchPlaceholder')} 
                     value={globalQuery}
                     onFocus={() => setIsGlobalOpen(true)}
                     onBlur={() => setTimeout(() => setIsGlobalOpen(false), 120)}
@@ -452,7 +464,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
                   >
                     {globalResults.length === 0 ? (
                       <div className="p-4 text-sm text-slate-500 font-medium">
-                        Ничего не найдено. Нажмите Enter для поиска в «Документах».
+                        {t('dashboard.nothingFound')}
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-50">

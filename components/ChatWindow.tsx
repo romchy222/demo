@@ -6,12 +6,16 @@ import { Agent, Doc, Message, User } from '../types';
 import { GEMINI_MODEL_NAME, getAgentResponse } from '../services/geminiService';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
+import { useI18n } from '../i18n/i18n';
 
 interface ChatWindowProps {
   agent: Agent;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
+  const { t, locale } = useI18n();
+  const agentName = t(agent.nameKey ?? '', undefined, agent.name);
+  const agentFullName = t(agent.fullNameKey ?? '', undefined, agent.fullName);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -55,18 +59,18 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const exportChatMarkdown = () => {
     const now = new Date().toISOString();
     const lines: string[] = [];
-    lines.push(`# Чат с ${agent.name}`);
-    lines.push(`- Пользователь: ${user.name} (${user.email})`);
-    lines.push(`- Экспорт: ${now}`);
+    lines.push(`# ${t('chat.export.md.title', { agent: agentName })}`);
+    lines.push(`- ${t('chat.export.md.user')}: ${user.name} (${user.email})`);
+    lines.push(`- ${t('chat.export.md.exportedAt')}: ${now}`);
     lines.push('');
 
     for (const m of messages) {
-      const ts = new Date(m.timestamp).toLocaleString();
+      const ts = new Date(m.timestamp).toLocaleString(locale);
       const who = m.role === 'user' ? 'USER' : 'AI';
       const latency = m.role === 'model' && m.latencyMs != null ? ` (latency ${Math.round(m.latencyMs)}ms)` : '';
       lines.push(`## ${ts} — ${who}${latency}`);
       lines.push(m.content || '');
-      if (m.attachment) lines.push('\n[attachment: image]');
+      if (m.attachment) lines.push(`\n${t('chat.export.md.attachment')}`);
       lines.push('');
     }
 
@@ -75,7 +79,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   };
 
   const clearChat = () => {
-    if (!confirm(`Очистить диалог с ${agent.name}?`)) return;
+    if (!confirm(t('chat.confirm.clear', { name: agentName }))) return;
     db.messages.clear(user.id, agent.id);
     setMessages([]);
     db.audit.log({ actorUserId: user.id, type: 'chat_clear', details: { agentId: agent.id } });
@@ -131,7 +135,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   // Голосовой ввод (Web Speech API)
   const toggleListening = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      alert('Ваш браузер не поддерживает голосовой ввод.');
+      alert(t('chat.alert.voiceUnsupported'));
       return;
     }
     
@@ -142,7 +146,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    recognition.lang = 'ru-RU';
+    recognition.lang = locale;
     recognition.interimResults = false;
 
     recognition.onstart = () => setIsListening(true);
@@ -159,7 +163,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const speakText = (text: string) => {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'ru-RU';
+    utterance.lang = locale;
     utterance.rate = 1.1;
     window.speechSynthesis.speak(utterance);
   };
@@ -202,7 +206,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
 
     const docsContext = useDocs ? buildDocsContext(userMsg.content, docs) : null;
     const promptForAi = docsContext
-      ? `${userMsg.content}\n\n---\nКонтекст из ваших документов (локальная база знаний):\n${docsContext}`
+      ? `${userMsg.content}\n\n---\n${t('chat.docsContextHeader')}\n${docsContext}`
       : userMsg.content;
 
     if (docsContext) {
@@ -240,15 +244,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
           </div>
           <div>
             <h2 className="font-bold text-slate-800 text-lg flex items-center gap-2">
-              {agent.name}
+              {agentName}
               <span
                 className={`px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest border ${hasApiKey ? 'bg-white/50 text-slate-600 border-slate-200' : 'bg-rose-50 text-rose-600 border-rose-200'}`}
-                title={hasApiKey ? `Model: ${GEMINI_MODEL_NAME}` : 'Нет GEMINI_API_KEY'}
+                title={hasApiKey ? `Model: ${GEMINI_MODEL_NAME}` : t('chat.noKey')}
               >
                 {hasApiKey ? GEMINI_MODEL_NAME : 'NO KEY'}
               </span>
             </h2>
-            <p className="text-xs text-slate-600 font-medium">{agent.fullName}</p>
+            <p className="text-xs text-slate-600 font-medium">{agentFullName}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -260,23 +264,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                   ? 'bg-emerald-600 text-white border-emerald-700'
                   : 'bg-white/50 hover:bg-white text-slate-700 border border-white'
               } ${docs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={docs.length > 0 ? `Использовать документы (${docs.length})` : 'Нет документов. Откройте раздел «Документы».'}
+              title={docs.length > 0 ? t('chat.useDocsTitle', { count: docs.length }) : t('chat.useDocsNoneTitle')}
             >
-              <i className="fas fa-file-lines"></i> Документы
+              <i className="fas fa-file-lines"></i> {t('chat.docsButton')}
             </button>
 
             <button
               onClick={exportChatMarkdown}
               className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-slate-700 border border-white shadow-sm transition-all flex items-center gap-2"
-              title="Экспорт диалога"
+              title={t('chat.export.title')}
             >
-              <i className="fas fa-download"></i> Экспорт
+              <i className="fas fa-download"></i> {t('chat.export.button')}
             </button>
 
             <button
               onClick={clearChat}
               className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-rose-600 border border-white shadow-sm transition-all flex items-center gap-2"
-              title="Очистить чат"
+              title={t('chat.clearTitle')}
             >
               <i className="fas fa-trash-alt"></i>
             </button>
@@ -288,7 +292,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
         {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
                 <i className={`fas ${agent.icon} text-6xl mb-4`}></i>
-                <p className="text-sm font-medium">Начните диалог с {agent.name}</p>
+                <p className="text-sm font-medium">{t('chat.startDialog', { name: agentName })}</p>
             </div>
         )}
         {messages.map((m) => (
@@ -312,14 +316,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                         <button 
                             onClick={() => speakText(m.content)}
                             className="text-slate-400 hover:text-amber-500 p-2 transition-colors rounded-lg hover:bg-slate-50"
-                            title="Озвучить"
+                            title={t('chat.speak')}
                         >
                             <i className="fas fa-volume-up"></i>
                         </button>
                         <button
                             onClick={() => navigator.clipboard.writeText(m.content || '')}
                             className="text-slate-400 hover:text-indigo-600 p-2 transition-colors rounded-lg hover:bg-slate-50"
-                            title="Скопировать ответ"
+                            title={t('chat.copyAnswer')}
                         >
                             <i className="fas fa-copy"></i>
                         </button>
@@ -334,7 +338,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                                         className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${
                                             upActive ? 'text-emerald-600' : 'text-slate-400 hover:text-emerald-600'
                                         }`}
-                                        title="Полезно"
+                                        title={t('chat.helpful')}
                                     >
                                         <i className="fas fa-thumbs-up"></i>
                                     </button>
@@ -343,7 +347,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                                         className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${
                                             downActive ? 'text-rose-600' : 'text-slate-400 hover:text-rose-600'
                                         }`}
-                                        title="Не помогло"
+                                        title={t('chat.notHelpful')}
                                     >
                                         <i className="fas fa-thumbs-down"></i>
                                     </button>
@@ -368,7 +372,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                         <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-100"></div>
                         <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-200"></div>
                     </div>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Обработка данных</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('chat.processing')}</span>
                 </div>
             </div>
         )}
@@ -379,7 +383,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
         {attachment && (
             <div className="mb-2 flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg w-fit">
                 <i className="fas fa-image text-slate-500"></i>
-                <span className="text-xs text-slate-600 font-bold">Изображение прикреплено</span>
+                <span className="text-xs text-slate-600 font-bold">{t('chat.attachmentAdded')}</span>
                 <button onClick={() => setAttachment(null)} className="text-rose-500 hover:text-rose-700 ml-2">
                     <i className="fas fa-times"></i>
                 </button>
@@ -389,7 +393,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
           <button 
              onClick={() => fileInputRef.current?.click()}
              className="w-10 h-10 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center"
-             title="Прикрепить фото/документ"
+             title={t('chat.attachTitle')}
           >
             <i className="fas fa-paperclip"></i>
           </button>
@@ -403,7 +407,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
           
           <textarea 
             rows={1}
-            placeholder={isListening ? "Слушаю вас..." : "Напишите сообщение..."}
+            placeholder={isListening ? t('chat.listening') : t('chat.writeMessage')}
             className="flex-1 bg-transparent border-none px-2 py-2.5 outline-none text-sm font-medium resize-none"
             value={input}
             onChange={e => setInput(e.target.value)}
@@ -415,7 +419,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
              className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${
                  isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'
              }`}
-             title="Голосовой ввод"
+             title={t('chat.voiceInput')}
           >
             <i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
           </button>

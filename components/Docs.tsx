@@ -3,12 +3,14 @@ import { useLocation } from 'react-router-dom';
 import { Doc, User } from '../types';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
+import { useI18n } from '../i18n/i18n';
 
 interface DocsProps {
   user: User;
 }
 
 export const Docs: React.FC<DocsProps> = ({ user }) => {
+  const { t, locale } = useI18n();
   const location = useLocation();
   const [docs, setDocs] = useState<Doc[]>(() => db.docs.findByUser(user.id));
   const [query, setQuery] = useState('');
@@ -45,7 +47,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
   };
 
   const removeDoc = (id: string) => {
-    if (!confirm('Удалить документ?')) return;
+    if (!confirm(t('docs.confirmDelete'))) return;
     db.docs.remove(id);
     db.audit.log({ actorUserId: user.id, type: 'doc_delete', details: { docId: id } });
     refresh();
@@ -101,9 +103,9 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
     <div className="max-w-5xl mx-auto space-y-6 animate-fade-in pb-10">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-800 tracking-tight">Документы</h1>
+          <h1 className="text-2xl font-black text-slate-800 tracking-tight">{t('docs.title')}</h1>
           <p className="text-sm text-slate-500 font-medium mt-1">
-            Ваша локальная база знаний. В чате можно включить «Документы» для ответов с учетом этих материалов.
+            {t('docs.subtitle')}
           </p>
         </div>
 
@@ -112,7 +114,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
             onClick={() => fileInputRef.current?.click()}
             className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-shadow shadow-lg shadow-indigo-600/20"
           >
-            <i className="fas fa-upload mr-2"></i> Загрузить файл
+            <i className="fas fa-upload mr-2"></i> {t('docs.upload')}
           </button>
           <input
             ref={fileInputRef}
@@ -136,7 +138,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
                 <i className="fas fa-database"></i>
               </div>
               <div>
-                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Всего документов</p>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('docs.total')}</p>
                 <p className="text-xl font-black text-slate-800">{docs.length}</p>
               </div>
             </div>
@@ -144,7 +146,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Поиск по названию и тексту…"
+                placeholder={t('docs.searchPlaceholder')}
                 className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold transition-all"
               />
             </div>
@@ -154,19 +156,19 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
         <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
             <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
-              <i className="fas fa-plus-circle text-emerald-600"></i> Новый документ
+              <i className="fas fa-plus-circle text-emerald-600"></i> {t('docs.newDoc')}
             </h3>
             <div className="space-y-3">
               <input
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Название"
+                placeholder={t('docs.docTitle')}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold"
               />
               <textarea
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                placeholder="Вставьте текст (можно Markdown)…"
+                placeholder={t('docs.docContentPlaceholder')}
                 rows={10}
                 className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:ring-2 ring-amber-500/20 outline-none text-sm font-medium resize-y"
               />
@@ -179,7 +181,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
                     : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
                 }`}
               >
-                Добавить
+                {t('docs.add')}
               </button>
             </div>
           </div>
@@ -187,18 +189,18 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
           <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                <i className="fas fa-file-lines text-indigo-600"></i> Список
+                <i className="fas fa-file-lines text-indigo-600"></i> {t('docs.list')}
               </h3>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                Найдено: {filtered.length}
+                {t('docs.found', { count: filtered.length })}
               </span>
             </div>
 
             {filtered.length === 0 ? (
               <div className="p-10 text-center text-slate-400">
                 <i className="fas fa-folder-open text-5xl mb-4"></i>
-                <p className="text-sm font-bold">Документов пока нет</p>
-                <p className="text-xs mt-2">Загрузите файл или создайте документ вручную.</p>
+                <p className="text-sm font-bold">{t('docs.none')}</p>
+                <p className="text-xs mt-2">{t('docs.emptyHelp')}</p>
               </div>
             ) : (
               <div className="divide-y divide-slate-50 max-h-[540px] overflow-y-auto custom-scrollbar">
@@ -208,22 +210,22 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
                       <div className="min-w-0">
                         <p className="text-sm font-black text-slate-800 truncate">{d.title}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">
-                          Создано: {new Date(d.createdAt).toLocaleDateString()}
-                          {d.updatedAt ? ` • Обновлено: ${new Date(d.updatedAt).toLocaleDateString()}` : ''}
+                          {t('docs.created', { date: new Date(d.createdAt).toLocaleDateString(locale) })}
+                          {d.updatedAt ? ` • ${t('docs.updated', { date: new Date(d.updatedAt).toLocaleDateString(locale) })}` : ''}
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <button
                           onClick={() => startEdit(d)}
                           className="text-slate-400 hover:text-indigo-600 p-2 rounded-lg hover:bg-white"
-                          title="Редактировать"
+                          title={t('docs.edit')}
                         >
                           <i className="fas fa-pen"></i>
                         </button>
                         <button
                           onClick={() => removeDoc(d.id)}
                           className="text-slate-400 hover:text-rose-600 p-2 rounded-lg hover:bg-white"
-                          title="Удалить"
+                          title={t('docs.delete')}
                         >
                           <i className="fas fa-trash"></i>
                         </button>
@@ -245,7 +247,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-800">Редактирование</h3>
+              <h3 className="text-lg font-black text-slate-800">{t('docs.editing')}</h3>
               <button
                 onClick={() => setEditingId(null)}
                 className="w-10 h-10 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-all flex items-center justify-center"
@@ -258,14 +260,14 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-black"
-                placeholder="Название"
+                placeholder={t('docs.docTitle')}
               />
               <textarea
                 value={editContent}
                 onChange={e => setEditContent(e.target.value)}
                 rows={14}
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-medium resize-y"
-                placeholder="Текст"
+                placeholder={t('docs.text')}
               />
             </div>
             <div className="p-6 border-t border-slate-100 flex justify-end gap-3">
@@ -273,13 +275,13 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
                 onClick={() => setEditingId(null)}
                 className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-100 text-slate-600 hover:bg-slate-200"
               >
-                Отмена
+                {t('docs.cancel')}
               </button>
               <button
                 onClick={saveEdit}
                 className="px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900"
               >
-                Сохранить
+                {t('docs.save')}
               </button>
             </div>
           </div>

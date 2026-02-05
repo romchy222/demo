@@ -2,12 +2,15 @@ import React, { useState } from 'react';
 import { db } from '../services/dbService';
 import { User } from '../types';
 import { hashPassword, verifyPassword } from '../services/password';
+import { useT } from '../i18n/i18n';
+import { LanguageSelect } from './LanguageSelect';
 
 interface AuthProps {
   onLogin: (user: User) => void;
 }
 
 export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
+  const t = useT();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('student@bolashak.kz');
   const [password, setPassword] = useState('password');
@@ -22,16 +25,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const user = db.users.findByEmail(email);
       if (user) {
         if (!verifyPassword(password, user.passwordHash)) {
-          setError('Неверный пароль.');
+          setError(t('auth.err.invalidPassword'));
           return;
         }
         onLogin(user);
       } else {
-        setError('Пользователь не найден. Используйте student@bolashak.kz');
+        setError(t('auth.err.userNotFound'));
       }
     } else {
-      if (!name || !email) return setError('Заполните все поля');
-      if (!password || password.length < 6) return setError('Пароль должен быть минимум 6 символов.');
+      if (!name || !email) return setError(t('auth.err.fillAll'));
+      if (!password || password.length < 6) return setError(t('auth.err.passwordMin'));
       const newUser: User = {
         id: Math.random().toString(36).substr(2, 9),
         email,
@@ -53,6 +56,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
       </div>
 
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelect variant="dark" />
+      </div>
+
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10 animate-fade-in">
         <div className="p-8">
           <div className="text-center mb-10">
@@ -60,17 +67,17 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
                 <i className="fas fa-graduation-cap"></i>
             </div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">BOLASHAK AI</h1>
-            <p className="text-slate-500 text-sm mt-2">Экосистема интеллектуальных сервисов</p>
+            <p className="text-slate-500 text-sm mt-2">{t('auth.ecosystem')}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
               <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">ФИО</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">{t('auth.fullName')}</label>
                 <input 
                   type="text" 
                   className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium" 
-                  placeholder="Ваше имя"
+                  placeholder={t('auth.yourName')}
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -87,7 +94,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Пароль</label>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">{t('auth.password')}</label>
               <input 
                 type="password" 
                 className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium" 
@@ -103,7 +110,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               type="submit" 
               className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20"
             >
-              {isLogin ? 'Войти в систему' : 'Создать аккаунт'}
+              {isLogin ? t('auth.login') : t('auth.createAccount')}
             </button>
           </form>
 
@@ -112,14 +119,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               onClick={() => setIsLogin(!isLogin)}
               className="text-xs font-bold text-slate-400 hover:text-amber-600 transition-colors uppercase tracking-widest"
             >
-              {isLogin ? 'У меня еще нет аккаунта' : 'У меня уже есть аккаунт'}
+              {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
             </button>
           </div>
         </div>
         
         <div className="bg-slate-50 p-6 text-center border-t border-slate-100">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                © 2025 Цифровой Департамент «Болашак»
+                {t('auth.footer')}
             </p>
         </div>
       </div>

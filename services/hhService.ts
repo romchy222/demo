@@ -54,16 +54,23 @@ const toQuery = (params: Record<string, string | number | boolean | null | undef
   return s ? `?${s}` : '';
 };
 
-export const formatSalary = (salary: HhSalary | null) => {
+export const formatSalary = (
+  salary: HhSalary | null,
+  opts?: { locale?: string; fromLabel?: string; toLabel?: string; rangeSeparator?: string }
+) => {
   if (!salary) return null;
   const from = salary.from ?? null;
   const to = salary.to ?? null;
   const cur = salary.currency ?? '';
+  const locale = opts?.locale ?? 'ru-RU';
+  const fromLabel = opts?.fromLabel ?? 'от';
+  const toLabel = opts?.toLabel ?? 'до';
+  const rangeSeparator = opts?.rangeSeparator ?? '–';
 
   if (from == null && to == null) return null;
-  if (from != null && to != null) return `${from.toLocaleString('ru-RU')}–${to.toLocaleString('ru-RU')} ${cur}`.trim();
-  if (from != null) return `от ${from.toLocaleString('ru-RU')} ${cur}`.trim();
-  return `до ${to!.toLocaleString('ru-RU')} ${cur}`.trim();
+  if (from != null && to != null) return `${from.toLocaleString(locale)}${rangeSeparator}${to.toLocaleString(locale)} ${cur}`.trim();
+  if (from != null) return `${fromLabel} ${from.toLocaleString(locale)} ${cur}`.trim();
+  return `${toLabel} ${to!.toLocaleString(locale)} ${cur}`.trim();
 };
 
 export async function searchVacancies(params: SearchVacanciesParams): Promise<HhVacancySearchResult> {

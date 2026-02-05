@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useT } from '../i18n/i18n';
+import { LanguageSelect } from './LanguageSelect';
 
 type MediaItem = {
   src: string;
@@ -44,6 +46,7 @@ const SectionTitle: React.FC<{ icon: string; title: string }> = ({ icon, title }
 );
 
 export const Home: React.FC = () => {
+  const t = useT();
   const isAuthed = useMemo(() => {
     try {
       const raw = localStorage.getItem('bolashak_auth_session');
@@ -61,18 +64,18 @@ export const Home: React.FC = () => {
         src: '/ai-sana/cover.jpg',
         alt: 'AI-Sana',
         heightClass: 'h-56',
-        fallbackTitle: 'AI‑SANA',
-        fallbackSubtitle: 'Траектория технологий • образование • DeepTech'
+        fallbackTitle: t('home.aiSanaTitle'),
+        fallbackSubtitle: t('home.aiSanaSubtitle')
       },
       {
         src: '/ai-sana/event.jpg',
         alt: 'AI-Sana event',
         heightClass: 'h-72',
-        fallbackTitle: 'Комьюнити и события',
-        fallbackSubtitle: 'Партнёры, университеты и индустрия в одной экосистеме'
+        fallbackTitle: t('home.communityTitle'),
+        fallbackSubtitle: t('home.communitySubtitle')
       }
     ],
-    []
+    [t]
   );
 
   return (
@@ -113,28 +116,31 @@ export const Home: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <LanguageSelect variant="light" />
             <Link
               to="/app"
               className="px-4 py-2.5 rounded-2xl bg-white text-slate-900 text-xs font-black uppercase tracking-widest hover:bg-indigo-100 transition-colors"
-              title="Перейти к AI-сервисам"
+              title={t('home.goAi')}
             >
-              <i className="fas fa-wand-magic-sparkles mr-2"></i>ИИ
+              <i className="fas fa-wand-magic-sparkles mr-2"></i>
+              {t('home.ai')}
             </Link>
             <Link
               to="/auth"
               className="px-4 py-2.5 rounded-2xl bg-white/10 ring-1 ring-white/15 text-white text-xs font-black uppercase tracking-widest hover:bg-white/15 transition-colors"
-              title={isAuthed ? 'Сменить пользователя' : 'Авторизация'}
+              title={isAuthed ? t('home.switchUser') : t('home.auth')}
             >
-              <i className="fas fa-right-to-bracket mr-2"></i>{isAuthed ? 'Сменить' : 'Войти'}
+              <i className="fas fa-right-to-bracket mr-2"></i>
+              {isAuthed ? t('home.switch') : t('home.enter')}
             </Link>
           </div>
         </div>
 
         <div className="text-center mb-10">
           <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white">
-            О программе{' '}
+            {t('home.about')}{' '}
             <span className="bg-gradient-to-r from-indigo-300 via-white to-indigo-300 bg-clip-text text-transparent">
-              AI‑Sana
+              {t('home.aiSanaTitle')}
             </span>
           </h1>
         </div>
@@ -142,45 +148,40 @@ export const Home: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_460px] gap-10 items-start">
           <div className="text-white/90">
             <p className="text-sm md:text-base leading-relaxed text-white/80 max-w-2xl">
-              <span className="text-white font-bold">AI‑Sana</span> — государственная программа Казахстана,
-              запущенная <span className="text-white font-bold">11 декабря 2024 года</span> по инициативе Президента и
-              реализуемая Министерством науки и высшего образования. Её цель — подготовить «AI‑нацию» через образование,
-              исследование и запуск DeepTech‑стартапов.
+              {t('home.programText')}
             </p>
 
-            <SectionTitle icon="fa-bullseye" title="Цели программы" />
+            <SectionTitle icon="fa-bullseye" title={t('home.programGoals')} />
             <ul className="mt-4 space-y-2 text-sm text-white/80">
               <li className="flex gap-3">
                 <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/60 shrink-0"></span>
-                Запуск стартапов в области DeepTech.
+                {t('home.goal1')}
               </li>
               <li className="flex gap-3">
                 <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/60 shrink-0"></span>
-                Развитие компетенций в области искусственного интеллекта.
+                {t('home.goal2')}
               </li>
               <li className="flex gap-3">
                 <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/60 shrink-0"></span>
-                Создание исследовательских лабораторий и центров AI‑разработки.
+                {t('home.goal3')}
               </li>
               <li className="flex gap-3">
                 <span className="mt-2 w-1.5 h-1.5 rounded-full bg-white/60 shrink-0"></span>
-                Формирование цифровой грамотности у студентов и преподавателей.
+                {t('home.goal4')}
               </li>
             </ul>
 
-            <SectionTitle icon="fa-lightbulb" title="Основные направления" />
+            <SectionTitle icon="fa-lightbulb" title={t('home.mainDirections')} />
             <ol className="mt-4 space-y-2 text-sm text-white/80 list-decimal pl-5">
-              <li>Образование и подготовка специалистов в области AI.</li>
-              <li>Коммерциализация и внедрение инноваций в экономику.</li>
-              <li>Интеграция AI‑технологий в университетскую экосистему.</li>
-              <li>Поддержка научных исследований и международных коллабораций.</li>
+              <li>{t('home.dir1')}</li>
+              <li>{t('home.dir2')}</li>
+              <li>{t('home.dir3')}</li>
+              <li>{t('home.dir4')}</li>
             </ol>
 
-            <SectionTitle icon="fa-chart-line" title="Ожидаемые эффекты" />
+            <SectionTitle icon="fa-chart-line" title={t('home.expectedEffects')} />
             <p className="mt-4 text-sm leading-relaxed text-white/80 max-w-2xl">
-              Программа позволит повысить конкурентоспособность Казахстана в области искусственного интеллекта, обеспечит
-              новые возможности для студентов и преподавателей, а также создаст условия для формирования инновационной
-              экономики будущего.
+              {t('home.effectsText')}
             </p>
           </div>
 

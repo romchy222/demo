@@ -3,6 +3,18 @@ import { GoogleGenAI } from "@google/genai";
 
 export const GEMINI_MODEL_NAME = 'gemini-3-flash-preview';
 
+type Lang = 'ru' | 'en' | 'kk';
+
+function getUiLang(): Lang {
+  try {
+    const raw = localStorage.getItem('bolashak_lang');
+    if (raw === 'ru' || raw === 'en' || raw === 'kk') return raw;
+  } catch {
+    // ignore
+  }
+  return 'ru';
+}
+
 function getGeminiApiKey(): string {
   // Client-side (Vite) env vars must be prefixed with VITE_.
   // Support both VITE_GEMINI_API_KEY and the older VITE_API_KEY.
@@ -70,9 +82,14 @@ export async function getAgentResponse(
     return response.text;
   } catch (error: any) {
     console.error("Gemini API Error:", error);
+    const lang = getUiLang();
     if (error.message?.includes("API_KEY")) {
+      if (lang === 'en') return "Security: API key is missing. Please contact an administrator.";
+      if (lang === 'kk') return "Қауіпсіздік: API кілті жоқ. Әкімшіге хабарласыңыз.";
       return "Система безопасности: Отсутствует ключ API. Обратитесь к администратору.";
     }
+    if (lang === 'en') return "Connection error. Please try again.";
+    if (lang === 'kk') return "Байланыс қатесі. Қайталап көріңіз.";
     return "Произошла ошибка связи с нейросетью. Попробуйте повторить запрос.";
   }
 }

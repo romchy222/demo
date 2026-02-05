@@ -5,6 +5,7 @@ import { Role, User } from '../types';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
 import { hashPassword } from '../services/password';
+import { useI18n } from '../i18n/i18n';
 
 type Tab = 'stats' | 'users' | 'broadcast' | 'audit' | 'backup';
 
@@ -25,6 +26,7 @@ function clamp(n: number, min: number, max: number) {
 }
 
 const AdminPanel: React.FC = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>('stats');
   const [refreshTick, setRefreshTick] = useState(0);
 
@@ -35,7 +37,7 @@ const AdminPanel: React.FC = () => {
   const [newUserRole, setNewUserRole] = useState<Role>('STUDENT');
   const [newUserDept, setNewUserDept] = useState('');
 
-  const [broadcastTitle, setBroadcastTitle] = useState('Объявление');
+  const [broadcastTitle, setBroadcastTitle] = useState(() => t('admin.broadcast.defaultTitle'));
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastSeverity, setBroadcastSeverity] = useState<'INFO' | 'WARN' | 'ALERT'>('INFO');
 
@@ -73,7 +75,7 @@ const AdminPanel: React.FC = () => {
         : null;
       return {
         agentId: a.id,
-        agentName: a.name,
+        agentName: t(a.nameKey ?? '', undefined, a.name),
         requests: agentUserMessages.length,
         responses: agentModelMessages.length,
         avgLatencyMs: agentAvgLatencyMs,
@@ -100,7 +102,7 @@ const AdminPanel: React.FC = () => {
       perAgent,
       timeline
     };
-  }, [refreshTick]);
+  }, [refreshTick, t]);
 
   const users = useMemo(() => {
     const all = db.users.findAll();
@@ -121,9 +123,9 @@ const AdminPanel: React.FC = () => {
 
   const createUser = () => {
     if (!newUserEmail.trim() || !newUserName.trim()) return;
-    if (!newUserPassword || newUserPassword.length < 6) return alert('Пароль должен быть минимум 6 символов.');
+    if (!newUserPassword || newUserPassword.length < 6) return alert(t('admin.users.err.passwordMin'));
     const existing = db.users.findByEmail(newUserEmail.trim());
-    if (existing) return alert('Пользователь с таким email уже существует.');
+    if (existing) return alert(t('admin.users.err.emailExists'));
 
     const user: User = {
       id: makeId('u_'),
@@ -150,7 +152,7 @@ const AdminPanel: React.FC = () => {
     db.audit.log({ type: 'admin_broadcast', details: { severity: broadcastSeverity } });
     setBroadcastMessage('');
     makeRefresh();
-    alert('Уведомление отправлено всем пользователям.');
+    alert(t('admin.broadcast.sent'));
   };
 
   const exportBackup = () => {
@@ -166,24 +168,24 @@ const AdminPanel: React.FC = () => {
     db.importAll(bundle, { mode });
     db.audit.log({ type: 'admin_backup_import', details: { mode, filename: file.name } });
     makeRefresh();
-    alert('Импорт выполнен. Если интерфейс не обновился, перезагрузите страницу.');
+    alert(t('admin.backup.importDone'));
   };
 
   return (
     <div className="p-6 space-y-8 overflow-y-auto h-full animate-fade-in">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Система управления Bolashak AI</h1>
-          <p className="text-slate-500 text-sm">Мониторинг, пользователи, уведомления, аудит и резервные копии.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('admin.title')}</h1>
+          <p className="text-slate-500 text-sm">{t('admin.subtitle')}</p>
         </div>
         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-1">
           {(
             [
-              { id: 'stats', label: 'Аналитика' },
-              { id: 'users', label: 'Пользователи' },
-              { id: 'broadcast', label: 'Рассылка' },
-              { id: 'audit', label: 'Аудит' },
-              { id: 'backup', label: 'Бэкап' }
+              { id: 'stats', label: t('admin.tab.stats') },
+              { id: 'users', label: t('admin.tab.users') },
+              { id: 'broadcast', label: t('admin.tab.broadcast') },
+              { id: 'audit', label: t('admin.tab.audit') },
+              { id: 'backup', label: t('admin.tab.backup') }
             ] as const
           ).map(t => (
             <button
@@ -203,22 +205,22 @@ const AdminPanel: React.FC = () => {
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
-              { label: 'Запросов', value: `${analytics.totalRequests}`, sub: 'Всего (user-msg)', icon: 'fa-comments', color: 'text-blue-600' },
+              { label: t('admin.stat.requests'), value: `${analytics.totalRequests}`, sub: t('admin.stat.requestsSub'), icon: 'fa-comments', color: 'text-blue-600' },
               {
                 label: 'SLA (avg)',
                 value: analytics.avgLatencyMs ? `${Math.round(analytics.avgLatencyMs)}ms` : '—',
-                sub: 'Средняя задержка',
+                sub: t('admin.stat.avgLatencySub'),
                 icon: 'fa-gauge-high',
                 color: 'text-amber-500'
               },
               {
                 label: 'Satisfaction',
                 value: analytics.satisfaction != null ? `${analytics.satisfaction}%` : '—',
-                sub: `Оценок: ${analytics.feedbackTotal}`,
+                sub: t('admin.stat.ratings', { count: analytics.feedbackTotal }),
                 icon: 'fa-heart',
                 color: 'text-rose-500'
               },
-              { label: 'Пользователи', value: `${analytics.usersCount}`, sub: `Docs: ${analytics.docsCount}`, icon: 'fa-users', color: 'text-emerald-500' }
+              { label: t('admin.stat.users'), value: `${analytics.usersCount}`, sub: `Docs: ${analytics.docsCount}`, icon: 'fa-users', color: 'text-emerald-500' }
             ].map((stat, i) => (
               <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start">
@@ -238,7 +240,7 @@ const AdminPanel: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <i className="fas fa-chart-bar text-amber-500"></i> Запросы по агентам
+                <i className="fas fa-chart-bar text-amber-500"></i> {t('admin.chart.byAgents')}
               </h3>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -262,7 +264,7 @@ const AdminPanel: React.FC = () => {
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <i className="fas fa-chart-line text-indigo-600"></i> Динамика (14 дней)
+                <i className="fas fa-chart-line text-indigo-600"></i> {t('admin.chart.trend14')}
               </h3>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -282,7 +284,7 @@ const AdminPanel: React.FC = () => {
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <h3 className="text-sm font-bold text-slate-800 mb-6">Статус нейро-узлов</h3>
+            <h3 className="text-sm font-bold text-slate-800 mb-6">{t('admin.nodes.status')}</h3>
             <div className="space-y-3">
               {analytics.perAgent.map(agent => (
                 <div
@@ -315,14 +317,14 @@ const AdminPanel: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Пользователи</h3>
-              <p className="text-xs text-slate-500 mt-1">Поиск, роли и департаменты (локально в браузере).</p>
+              <h3 className="text-lg font-bold text-slate-800">{t('admin.users.title')}</h3>
+              <p className="text-xs text-slate-500 mt-1">{t('admin.users.subtitle')}</p>
             </div>
             <div className="flex-1 lg:max-w-md">
               <input
                 value={userQuery}
                 onChange={e => setUserQuery(e.target.value)}
-                placeholder="Поиск по имени, email, роли…"
+                placeholder={t('admin.users.searchPlaceholder')}
                 className="w-full px-5 py-3 rounded-2xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold transition-all"
               />
             </div>
@@ -334,10 +336,10 @@ const AdminPanel: React.FC = () => {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase tracking-widest">
                     <tr>
-                      <th className="text-left p-3">Имя</th>
+                      <th className="text-left p-3">{t('admin.users.col.name')}</th>
                       <th className="text-left p-3">Email</th>
-                      <th className="text-left p-3">Роль</th>
-                      <th className="text-left p-3">Департамент</th>
+                      <th className="text-left p-3">{t('admin.users.col.role')}</th>
+                      <th className="text-left p-3">{t('admin.users.col.department')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -375,13 +377,13 @@ const AdminPanel: React.FC = () => {
 
             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
               <h3 className="text-sm font-black text-slate-800 mb-4 flex items-center gap-2">
-                <i className="fas fa-user-plus text-emerald-600"></i> Добавить пользователя
+                <i className="fas fa-user-plus text-emerald-600"></i> {t('admin.users.add')}
               </h3>
               <div className="space-y-3">
                 <input
                   value={newUserName}
                   onChange={e => setNewUserName(e.target.value)}
-                  placeholder="ФИО"
+                  placeholder={t('admin.users.placeholder.fullName')}
                   className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold"
                 />
                 <input
@@ -394,7 +396,7 @@ const AdminPanel: React.FC = () => {
                   type="password"
                   value={newUserPassword}
                   onChange={e => setNewUserPassword(e.target.value)}
-                  placeholder="Пароль"
+                  placeholder={t('admin.users.placeholder.password')}
                   className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold"
                 />
                 <select
@@ -411,7 +413,7 @@ const AdminPanel: React.FC = () => {
                 <input
                   value={newUserDept}
                   onChange={e => setNewUserDept(e.target.value)}
-                  placeholder="Департамент (опц.)"
+                  placeholder={t('admin.users.placeholder.departmentOpt')}
                   className="w-full px-4 py-3 rounded-xl bg-white border border-slate-200 focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold"
                 />
                 <button
@@ -423,7 +425,7 @@ const AdminPanel: React.FC = () => {
                       : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
                   }`}
                 >
-                  Создать
+                  {t('admin.users.create')}
                 </button>
               </div>
             </div>
@@ -435,11 +437,11 @@ const AdminPanel: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Рассылка уведомлений</h3>
-              <p className="text-xs text-slate-500 mt-1">Отправляет сообщение всем пользователям (localStorage).</p>
+              <h3 className="text-lg font-bold text-slate-800">{t('admin.broadcast.title')}</h3>
+              <p className="text-xs text-slate-500 mt-1">{t('admin.broadcast.subtitle')}</p>
             </div>
             <div className="px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 text-xs font-black text-slate-500">
-              Всего уведомлений: {analytics.notificationsCount}
+              {t('admin.broadcast.total', { count: analytics.notificationsCount })}
             </div>
           </div>
 
@@ -449,18 +451,18 @@ const AdminPanel: React.FC = () => {
                 value={broadcastTitle}
                 onChange={e => setBroadcastTitle(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-black"
-                placeholder="Заголовок"
+                placeholder={t('admin.broadcast.placeholder.title')}
               />
               <textarea
                 value={broadcastMessage}
                 onChange={e => setBroadcastMessage(e.target.value)}
                 rows={8}
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-medium resize-y"
-                placeholder="Текст сообщения…"
+                placeholder={t('admin.broadcast.placeholder.message')}
               />
             </div>
             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-3">
-              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Параметры</p>
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('admin.broadcast.params')}</p>
               <select
                 value={broadcastSeverity}
                 onChange={e => setBroadcastSeverity(e.target.value as any)}
@@ -479,10 +481,10 @@ const AdminPanel: React.FC = () => {
                     : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
                 }`}
               >
-                <i className="fas fa-paper-plane mr-2"></i> Отправить всем
+                <i className="fas fa-paper-plane mr-2"></i> {t('admin.broadcast.sendAll')}
               </button>
               <p className="text-[10px] font-bold text-slate-400">
-                Совет: покажите комиссии, как уведомление появляется у студента (раздел «Уведомления»).
+                {t('admin.broadcast.tip')}
               </p>
             </div>
           </div>
@@ -493,25 +495,25 @@ const AdminPanel: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Аудит (последние события)</h3>
-              <p className="text-xs text-slate-500 mt-1">Локальный журнал действий (чат, документы, админ-панель).</p>
+              <h3 className="text-lg font-bold text-slate-800">{t('admin.audit.title')}</h3>
+              <p className="text-xs text-slate-500 mt-1">{t('admin.audit.subtitle')}</p>
             </div>
             <button
               onClick={() => {
-                if (!confirm('Очистить аудит?')) return;
+                if (!confirm(t('admin.audit.confirmClear'))) return;
                 db.audit.clear();
                 makeRefresh();
               }}
               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-rose-600 hover:bg-slate-50"
             >
-              <i className="fas fa-trash mr-2"></i> Очистить
+              <i className="fas fa-trash mr-2"></i> {t('admin.audit.clear')}
             </button>
           </div>
           <div className="max-h-[560px] overflow-y-auto custom-scrollbar divide-y divide-slate-50">
             {audit.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <i className="fas fa-clipboard-list text-6xl mb-4"></i>
-                <p className="text-sm font-bold">Событий пока нет</p>
+                <p className="text-sm font-bold">{t('admin.audit.none')}</p>
               </div>
             ) : (
               audit.map(e => (
@@ -539,23 +541,22 @@ const AdminPanel: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Резервные копии</h3>
-              <p className="text-xs text-slate-500 mt-1">Экспорт/импорт данных (users/messages/docs/notifications/feedback/audit).</p>
+              <h3 className="text-lg font-bold text-slate-800">{t('admin.backup.title')}</h3>
+              <p className="text-xs text-slate-500 mt-1">{t('admin.backup.subtitle')}</p>
             </div>
             <button
               onClick={exportBackup}
               className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-amber-500 hover:text-slate-900 transition-shadow shadow-lg shadow-slate-900/20"
             >
-              <i className="fas fa-download mr-2"></i> Экспорт JSON
+              <i className="fas fa-download mr-2"></i> {t('admin.backup.exportJson')}
             </button>
           </div>
 
           <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100">
-              <h4 className="text-sm font-black text-slate-800 mb-3">Импорт</h4>
+              <h4 className="text-sm font-black text-slate-800 mb-3">{t('admin.backup.import')}</h4>
               <p className="text-xs text-slate-500 mb-4">
-                Выберите файл бэкапа. Можно <span className="font-bold">заменить</span> данные или{' '}
-                <span className="font-bold">объединить</span> (merge).
+                {t('admin.backup.instructions')}
               </p>
               <input ref={importFileRef} type="file" accept=".json" className="hidden" onChange={() => {}} />
               <div className="flex gap-3">
@@ -563,14 +564,14 @@ const AdminPanel: React.FC = () => {
                   onClick={() => importFileRef.current?.click()}
                   className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold hover:bg-slate-100"
                 >
-                  <i className="fas fa-file-import mr-2"></i> Выбрать файл
+                  <i className="fas fa-file-import mr-2"></i> {t('admin.backup.chooseFile')}
                 </button>
               </div>
               <div className="mt-4 flex gap-3">
                 <button
                   onClick={async () => {
                     const f = importFileRef.current?.files?.[0];
-                    if (!f) return alert('Сначала выберите файл.');
+                    if (!f) return alert(t('admin.backup.selectFileFirst'));
                     await importBackup(f, 'replace');
                   }}
                   className="px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700"
@@ -580,7 +581,7 @@ const AdminPanel: React.FC = () => {
                 <button
                   onClick={async () => {
                     const f = importFileRef.current?.files?.[0];
-                    if (!f) return alert('Сначала выберите файл.');
+                    if (!f) return alert(t('admin.backup.selectFileFirst'));
                     await importBackup(f, 'merge');
                   }}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700"
@@ -592,7 +593,7 @@ const AdminPanel: React.FC = () => {
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100">
-                <h4 className="text-sm font-black text-slate-800">Сводка</h4>
+                <h4 className="text-sm font-black text-slate-800">{t('admin.backup.summary')}</h4>
               </div>
               <div className="p-5 space-y-3 text-sm">
                 <div className="flex justify-between"><span className="text-slate-500">Users</span><span className="font-black text-slate-800">{analytics.usersCount}</span></div>

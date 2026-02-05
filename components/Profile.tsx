@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types';
 import { db } from '../services/dbService';
+import { useT } from '../i18n/i18n';
 
 interface ProfileProps {
   user: User;
@@ -9,6 +10,7 @@ interface ProfileProps {
 }
 
 export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
+  const t = useT();
   const [name, setName] = useState(user.name);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -18,7 +20,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
       db.users.update(user.id, { name });
       onUpdate({ ...user, name });
       setIsSaving(false);
-      alert('Данные успешно обновлены в БД');
+      alert(t('profile.updated'));
     }, 600);
   };
 
@@ -45,13 +47,15 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                 <div>
                     <h2 className="text-2xl font-black text-slate-800 tracking-tight">{user.name}</h2>
                     <p className="text-slate-500 font-medium">{user.email}</p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Регистрация: {new Date(user.joinedAt).toLocaleDateString()}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">
+                      {t('profile.registration')}: {new Date(user.joinedAt).toLocaleDateString()}
+                    </p>
                 </div>
             </div>
 
             <div className="mt-12 space-y-6">
                 <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Ваше полное имя</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('profile.fullName')}</label>
                     <input 
                         type="text" 
                         className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm font-bold transition-all"
@@ -62,13 +66,13 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Факультет / Департамент</label>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('profile.department')}</label>
                         <div className="w-full px-5 py-4 rounded-2xl bg-slate-100 text-slate-500 text-sm font-bold">
-                            {user.department || 'Не указано'}
+                            {user.department || t('profile.notSpecified')}
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Уровень доступа</label>
+                        <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('profile.accessLevel')}</label>
                         <div className="w-full px-5 py-4 rounded-2xl bg-slate-100 text-slate-500 text-sm font-bold">
                             Tier {user.role === 'ADMIN' ? '3' : user.role === 'FACULTY' ? '2' : '1'}
                         </div>
@@ -82,7 +86,7 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
                         className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
                     >
                         {isSaving ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-save"></i>}
-                        Сохранить профиль
+                        {t('profile.save')}
                     </button>
                 </div>
             </div>

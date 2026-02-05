@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatSalary, HhVacancy, searchVacancies } from '../services/hhService';
+import { useI18n } from '../i18n/i18n';
 
 interface VacanciesPanelProps {
   defaultQuery?: string;
 }
 
 export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = 'Кызылорда' }) => {
+  const { t, locale } = useI18n();
   const [draft, setDraft] = useState(defaultQuery);
   const [query, setQuery] = useState(defaultQuery);
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -39,7 +41,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
         setItems(prev => (page === 0 ? res.items : [...prev, ...res.items]));
       } catch (e: any) {
         if (e?.name === 'AbortError') return;
-        setError(e?.message || 'Не удалось загрузить вакансии.');
+        setError(e?.message || t('vacancies.err.loadFailed'));
       } finally {
         setIsLoading(false);
       }
@@ -80,18 +82,19 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
               <i className="fas fa-briefcase"></i>
             </div>
             <div className="overflow-hidden">
-              <h2 className="font-bold text-slate-800 text-lg leading-none">Вакансии (HH)</h2>
+              <h2 className="font-bold text-slate-800 text-lg leading-none">{t('vacancies.title')}</h2>
               <p className="text-xs text-slate-600 font-medium truncate">
-                {found == null ? 'Поиск по запросу' : `Найдено: ${found.toLocaleString('ru-RU')}`}
+                {found == null ? t('vacancies.searchByQuery') : t('vacancies.found', { count: found.toLocaleString(locale) })}
               </p>
             </div>
           </div>
           <button
             onClick={() => submit()}
             className="px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-rose-600 transition-colors shadow-sm"
-            title="Обновить список"
+            title={t('vacancies.refreshTitle')}
           >
-            <i className="fas fa-rotate-right mr-2"></i>Обновить
+            <i className="fas fa-rotate-right mr-2"></i>
+            {t('vacancies.refresh')}
           </button>
         </div>
 
@@ -102,7 +105,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
               value={draft}
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), submit())}
-              placeholder="Например: стажировка, junior, преподаватель…"
+              placeholder={t('vacancies.searchPlaceholder')}
               className="w-full bg-transparent border-none outline-none text-sm font-medium text-slate-700 py-2"
             />
           </div>
@@ -114,7 +117,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
               key={s}
               onClick={() => quickSearch(s)}
               className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-white/70 border border-white text-slate-600 hover:text-rose-600 hover:bg-white transition-colors"
-              title={`Искать: ${s}`}
+              title={`${t('vacancies.searchByQuery')}: ${s}`}
             >
               {s}
             </button>
@@ -128,10 +131,10 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
             <div className="flex items-start gap-3">
               <i className="fas fa-triangle-exclamation mt-0.5"></i>
               <div className="min-w-0">
-                <p className="font-bold">Ошибка загрузки</p>
+                <p className="font-bold">{t('vacancies.err.title')}</p>
                 <p className="text-xs mt-1 break-words">{error}</p>
                 <p className="text-[10px] mt-2 text-rose-700/80 font-bold uppercase tracking-widest">
-                  Совет: в dev используйте прокси Vite `/api/hh` (см. `vite.config.ts`)
+                  {t('vacancies.err.hint')}
                 </p>
               </div>
             </div>
@@ -141,13 +144,13 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
         {!error && items.length === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center text-slate-400 opacity-70 py-10">
             <i className="fas fa-briefcase text-5xl mb-4"></i>
-            <p className="text-sm font-medium">Нет результатов. Попробуйте другой запрос.</p>
+            <p className="text-sm font-medium">{t('vacancies.none')}</p>
           </div>
         )}
 
         {items.map(v => {
-          const salary = formatSalary(v.salary);
-          const published = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString('ru-RU') : null;
+          const salary = formatSalary(v.salary, { locale, fromLabel: t('common.from'), toLabel: t('common.to') });
+          const published = v.publishedAt ? new Date(v.publishedAt).toLocaleDateString(locale) : null;
           return (
             <a
               key={v.id}
@@ -155,7 +158,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
               target="_blank"
               rel="noreferrer"
               className="block bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-all group"
-              title="Открыть на HeadHunter"
+              title={t('vacancies.openOnHh')}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -163,7 +166,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
                     {v.name}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium mt-1 truncate">
-                    {v.employerName || 'Компания не указана'}
+                    {v.employerName || t('vacancies.companyUnknown')}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {salary && (
@@ -199,7 +202,7 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
                 <div className="w-2 h-2 bg-rose-500 rounded-full animate-bounce delay-100"></div>
                 <div className="w-2 h-2 bg-rose-500 rounded-full animate-bounce delay-200"></div>
               </div>
-              <span className="text-xs font-bold uppercase tracking-widest">Загрузка</span>
+              <span className="text-xs font-bold uppercase tracking-widest">{t('vacancies.loading')}</span>
             </div>
           </div>
         )}
@@ -214,9 +217,9 @@ export const VacanciesPanel: React.FC<VacanciesPanelProps> = ({ defaultQuery = '
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
               : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'
           }`}
-          title={canLoadMore ? 'Показать ещё вакансии' : 'Больше страниц нет'}
+          title={canLoadMore ? t('vacancies.showMoreTitle') : t('vacancies.noMorePages')}
         >
-          {canLoadMore ? 'Показать ещё' : 'Конец списка'}
+          {canLoadMore ? t('vacancies.showMore') : t('vacancies.end')}
         </button>
       </div>
     </div>
