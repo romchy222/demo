@@ -260,7 +260,54 @@ const MESSAGES: Record<Lang, Record<string, string>> = {
     'admin.backup.selectFileFirst': 'Сначала выберите файл.',
     'admin.backup.importDone': 'Импорт выполнен. Если интерфейс не обновился, перезагрузите страницу.',
     'admin.backup.instructions': 'Выберите файл бэкапа. Можно заменить данные или объединить (merge).',
-    'admin.backup.summary': 'Сводка'
+    'admin.backup.summary': 'Сводка',
+
+    'agent.tools.title': 'Инструменты',
+    'agent.tools.refreshTitle': 'Обновить',
+    'agent.tools.quick': 'Быстрые запросы',
+    'agent.tools.noneQuick': 'Нет быстрых кнопок',
+    'agent.tools.reference': 'Справка',
+    'agent.tools.noneReference': 'Справки нет',
+    'agent.tools.toChat': 'В чат',
+    'agent.tools.toChatTitle': 'В чат',
+    'agent.tools.askInChatTitle': 'Уточнить в чате',
+    'agent.tools.noneProcedures': 'Нет процедур',
+    'agent.tools.noneData': 'Нет данных',
+
+    'agent.tools.abitur.category': 'Категория вопроса',
+
+    'agent.tools.kadr.topic': 'Кадровая тема',
+    'agent.tools.kadr.procedures': 'Разъяснения по процедурам',
+
+    'agent.tools.nav.request': 'Учебный запрос',
+    'agent.tools.nav.startScenario': 'Запустить сценарий / подать заявление',
+
+    'agent.tools.room.caseType': 'Тип обращения',
+    'agent.tools.room.createCase': 'Создать обращение',
+
+    'agent.tools.info': 'Справочная информация',
+
+    'agent.tools.cases.status': 'Статус обращений',
+    'agent.tools.cases.none': 'Обращений пока нет',
+    'agent.tools.cases.case': 'Обращение',
+    'agent.tools.cases.close': 'Закрыть',
+    'agent.tools.cases.noMessages': 'Сообщений нет',
+    'agent.tools.cases.placeholder': 'Уточнение / сообщение...',
+    'agent.tools.cases.send': 'Отправить',
+    'agent.tools.cases.aiTitle': 'Попросить ИИ помочь сформулировать',
+    'agent.tools.cases.ai': 'ИИ',
+
+    'agent.tools.career.direction': 'Карьерное направление',
+    'agent.tools.career.getPlan': 'Получить план',
+    'agent.tools.career.resumeTips': 'Подсказки по резюме',
+    'agent.tools.career.noTips': 'Нет подсказок',
+
+    'case.status.OPEN': 'Открыто',
+    'case.status.IN_PROGRESS': 'В работе',
+    'case.status.RESOLVED': 'Решено',
+    'case.status.CLOSED': 'Закрыто',
+    'case.role.USER': 'ПОЛЬЗОВАТЕЛЬ',
+    'case.role.ADMIN': 'АДМИН'
   },
   en: {
     'lang.ru': 'Rus',
@@ -515,7 +562,54 @@ const MESSAGES: Record<Lang, Record<string, string>> = {
     'admin.backup.selectFileFirst': 'Please choose a file first.',
     'admin.backup.importDone': 'Import completed. If the UI did not refresh, reload the page.',
     'admin.backup.instructions': 'Choose a backup file. You can replace data or merge.',
-    'admin.backup.summary': 'Summary'
+    'admin.backup.summary': 'Summary',
+
+    'agent.tools.title': 'Tools',
+    'agent.tools.refreshTitle': 'Refresh',
+    'agent.tools.quick': 'Quick actions',
+    'agent.tools.noneQuick': 'No quick buttons',
+    'agent.tools.reference': 'Reference',
+    'agent.tools.noneReference': 'No reference',
+    'agent.tools.toChat': 'To chat',
+    'agent.tools.toChatTitle': 'To chat',
+    'agent.tools.askInChatTitle': 'Ask in chat',
+    'agent.tools.noneProcedures': 'No procedures',
+    'agent.tools.noneData': 'No data',
+
+    'agent.tools.abitur.category': 'Question category',
+
+    'agent.tools.kadr.topic': 'HR topic',
+    'agent.tools.kadr.procedures': 'Procedure explanations',
+
+    'agent.tools.nav.request': 'Study request',
+    'agent.tools.nav.startScenario': 'Start scenario / submit application',
+
+    'agent.tools.room.caseType': 'Request type',
+    'agent.tools.room.createCase': 'Create request',
+
+    'agent.tools.info': 'Reference information',
+
+    'agent.tools.cases.status': 'Request status',
+    'agent.tools.cases.none': 'No requests yet',
+    'agent.tools.cases.case': 'Request',
+    'agent.tools.cases.close': 'Close',
+    'agent.tools.cases.noMessages': 'No messages',
+    'agent.tools.cases.placeholder': 'Clarification / message...',
+    'agent.tools.cases.send': 'Send',
+    'agent.tools.cases.aiTitle': 'Ask AI to help phrase',
+    'agent.tools.cases.ai': 'AI',
+
+    'agent.tools.career.direction': 'Career direction',
+    'agent.tools.career.getPlan': 'Get plan',
+    'agent.tools.career.resumeTips': 'Resume tips',
+    'agent.tools.career.noTips': 'No tips',
+
+    'case.status.OPEN': 'Open',
+    'case.status.IN_PROGRESS': 'In progress',
+    'case.status.RESOLVED': 'Resolved',
+    'case.status.CLOSED': 'Closed',
+    'case.role.USER': 'USER',
+    'case.role.ADMIN': 'ADMIN'
   },
   kk: {
     'lang.ru': 'Рус',
@@ -770,7 +864,54 @@ const MESSAGES: Record<Lang, Record<string, string>> = {
     'admin.backup.selectFileFirst': 'Алдымен файл таңдаңыз.',
     'admin.backup.importDone': 'Импорт аяқталды. Интерфейс жаңармаса, бетті қайта жүктеңіз.',
     'admin.backup.instructions': 'Бэкап файлын таңдаңыз. Деректерді ауыстыруға немесе біріктіруге (merge) болады.',
-    'admin.backup.summary': 'Қорытынды'
+    'admin.backup.summary': 'Қорытынды',
+
+    'agent.tools.title': 'Құралдар',
+    'agent.tools.refreshTitle': 'Жаңарту',
+    'agent.tools.quick': 'Жылдам сұраулар',
+    'agent.tools.noneQuick': 'Жылдам батырмалар жоқ',
+    'agent.tools.reference': 'Анықтама',
+    'agent.tools.noneReference': 'Анықтама жоқ',
+    'agent.tools.toChat': 'Чатқа',
+    'agent.tools.toChatTitle': 'Чатқа',
+    'agent.tools.askInChatTitle': 'Чатта нақтылау',
+    'agent.tools.noneProcedures': 'Процедура жоқ',
+    'agent.tools.noneData': 'Дерек жоқ',
+
+    'agent.tools.abitur.category': 'Сұрақ санаты',
+
+    'agent.tools.kadr.topic': 'Кадр тақырыбы',
+    'agent.tools.kadr.procedures': 'Процедура түсіндірмелері',
+
+    'agent.tools.nav.request': 'Оқу сұрауы',
+    'agent.tools.nav.startScenario': 'Сценарийді бастау / өтініш беру',
+
+    'agent.tools.room.caseType': 'Өтініш түрі',
+    'agent.tools.room.createCase': 'Өтініш жасау',
+
+    'agent.tools.info': 'Анықтамалық ақпарат',
+
+    'agent.tools.cases.status': 'Өтініш статусы',
+    'agent.tools.cases.none': 'Әзірге өтініш жоқ',
+    'agent.tools.cases.case': 'Өтініш',
+    'agent.tools.cases.close': 'Жабу',
+    'agent.tools.cases.noMessages': 'Хабарлама жоқ',
+    'agent.tools.cases.placeholder': 'Нақтылау / хабарлама...',
+    'agent.tools.cases.send': 'Жіберу',
+    'agent.tools.cases.aiTitle': 'ИИ мәтінді түзетсін',
+    'agent.tools.cases.ai': 'ИИ',
+
+    'agent.tools.career.direction': 'Мансап бағыты',
+    'agent.tools.career.getPlan': 'Жоспар алу',
+    'agent.tools.career.resumeTips': 'Түйіндеме кеңестері',
+    'agent.tools.career.noTips': 'Кеңес жоқ',
+
+    'case.status.OPEN': 'Ашық',
+    'case.status.IN_PROGRESS': 'Жұмыста',
+    'case.status.RESOLVED': 'Шешілді',
+    'case.status.CLOSED': 'Жабық',
+    'case.role.USER': 'ПАЙДАЛАНУШЫ',
+    'case.role.ADMIN': 'ӘКІМ'
   }
 };
 
