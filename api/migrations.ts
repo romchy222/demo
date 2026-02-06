@@ -4,6 +4,7 @@
  */
 
 import { initializeTables } from './_db.ts';
+import { pathToFileURL } from 'url';
 
 export async function runMigrations() {
   try {
@@ -17,6 +18,6 @@ export async function runMigrations() {
 }
 
 // Run migrations if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runMigrations().catch(console.error);
-}
+const argv1 = process.argv?.[1];
+const isDirect = Boolean(argv1) && import.meta.url === pathToFileURL(argv1).href;
+if (isDirect) runMigrations().catch(console.error);

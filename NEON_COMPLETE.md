@@ -43,7 +43,7 @@ DATABASE_URL=postgresql://user:password@host/dbname
 ```bash
 curl http://localhost:5173/api/health?init=true
 ```
-
+curl https://c31a474f-4c12-4b9f-bdbd-85c936baca3a-00-271yv00s3ltvg.pike.replit.dev/health/?init=true
 Expected response:
 ```json
 {"ok": true, "db": "ok", "timestamp": "..."}

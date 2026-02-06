@@ -13,7 +13,7 @@ export async function getSql() {
   
   const url = typeof process !== 'undefined' ? (process.env?.NEON_DATABASE_URL || process.env?.DATABASE_URL) : null;
   if (!url) {
-    throw new Error('DATABASE_URL environment variable is not set on the server');
+    throw new Error('NEON_DATABASE_URL or DATABASE_URL environment variable is not set on the server');
   }
   
   // Use a simple dynamic import that works with both ESM and CJS

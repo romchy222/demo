@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db:migrate": "node --loader ts-node/esm api/migrations.ts",
+    "db:init": "npm run db:migrate"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
