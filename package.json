@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"node --loader ts-node/esm server/index.ts\"",
+    "dev": "concurrently -k \"vite\" \"node --loader ts-node/esm --no-warnings server/index.ts\"",
     "build": "vite build",
     "preview": "vite preview",
     "db:migrate": "node --loader ts-node/esm api/migrations.ts",

@@ -1,4 +1,4 @@
-import { getUiItems, initializeTables } from './_db';
+import { getUiItems, initializeTables } from './_db.ts';
 
 export default async function handler(req: any, res: any) {
   try {

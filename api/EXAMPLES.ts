@@ -7,7 +7,7 @@
 /*
 // Example 1: Get all users
 // api/users.ts
-import { getUsers } from './_db';
+import { getUsers } from './_db.ts';
 
 export default async function handler(req: any, res: any) {
   try {
@@ -24,7 +24,7 @@ export default async function handler(req: any, res: any) {
 
 // Example 2: Get messages for a user-agent pair
 // api/messages.ts
-import { getMessagesByUserAndAgent, saveMessage } from './_db';
+import { getMessagesByUserAndAgent, saveMessage } from './_db.ts';
 
 export default async function handler(req: any, res: any) {
   try {
@@ -50,7 +50,7 @@ export default async function handler(req: any, res: any) {
 
 // Example 3: Authenticate user
 // api/auth.ts
-import { getUserByEmail } from './_db';
+import { getUserByEmail } from './_db.ts';
 import { verifyPassword } from '../services/password';
 
 export default async function handler(req: any, res: any) {
@@ -85,7 +85,7 @@ export default async function handler(req: any, res: any) {
 
 // Example 4: Get user notifications
 // api/notifications.ts
-import { getNotificationsByUser, markNotificationAsRead } from './_db';
+import { getNotificationsByUser, markNotificationAsRead } from './_db.ts';
 
 export default async function handler(req: any, res: any) {
   try {
@@ -115,7 +115,7 @@ export default async function handler(req: any, res: any) {
 
 // Example 5: Get user documents
 // api/docs.ts
-import { getDocsByUser, createDoc, updateDoc, removeDoc } from './_db';
+import { getDocsByUser, createDoc, updateDoc, removeDoc } from './_db.ts';
 
 export default async function handler(req: any, res: any) {
   try {

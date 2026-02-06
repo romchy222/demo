@@ -1,4 +1,4 @@
-import { addCaseMessage, getCaseMessages, initializeTables } from './_db';
+import { addCaseMessage, getCaseMessages, initializeTables } from './_db.ts';
 import type { CaseMessage } from '../types';
 
 function uuid() {

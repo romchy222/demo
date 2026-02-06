@@ -1,4 +1,4 @@
-import { createCase, getCasesByUserAndAgent, initializeTables, updateCase } from './_db';
+import { createCase, getCasesByUserAndAgent, initializeTables, updateCase } from './_db.ts';
 import type { AgentId, WorkflowCase } from '../types';
 
 function uuid() {

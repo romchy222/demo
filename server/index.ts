@@ -2,11 +2,11 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 
-import healthHandler from '../api/health';
-import uiItemsHandler from '../api/ui-items';
-import casesHandler from '../api/cases';
-import caseMessagesHandler from '../api/case-messages';
-import hhVacanciesHandler from '../api/hh/vacancies';
+import healthHandler from '../api/health.ts';
+import uiItemsHandler from '../api/ui-items.ts';
+import casesHandler from '../api/cases.ts';
+import caseMessagesHandler from '../api/case-messages.ts';
+import hhVacanciesHandler from '../api/hh/vacancies.ts';
 
 type AnyHandler = (req: any, res: any) => Promise<any> | any;
 
@@ -51,7 +51,7 @@ if (hasDist) {
   );
 }
 
-const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || (hasDist ? 5000 : 5001);
+const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || 5001;
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`API server listening on http://0.0.0.0:${port}`);
