@@ -159,11 +159,11 @@ export default async function handler(req, res) {
 
 ---
 
-## 🚢 Deployment (Vercel)
+## 🚢 Deployment (Node server + Neon)
 
-1. Add `DATABASE_URL` to Vercel Environment Variables
-2. Select all environments (Dev, Preview, Production)
-3. Deploy your project
+1. Set `DATABASE_URL` (or `NEON_DATABASE_URL`) in your host environment
+2. Run `npm run build`
+3. Run `npm run start`
 4. Done! ✅
 
 ---
@@ -188,7 +188,7 @@ Or use the **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)** for navigation
 3. Run `npm run dev` and test `/api/health?init=true`
 4. Read example code in `api/EXAMPLES.ts`
 5. Start building with the database functions!
-6. Deploy to Vercel with DATABASE_URL in environment
+6. Deploy with DATABASE_URL (or NEON_DATABASE_URL) in environment
 
 ---
 

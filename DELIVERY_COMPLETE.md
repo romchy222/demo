@@ -17,7 +17,7 @@ Your NEON PostgreSQL database connection has been fully implemented and configur
 | Type Safety | ✅ | Full TypeScript support |
 | Security | ✅ | Prepared statements, env variables |
 | Error Handling | ✅ | Try-catch in all functions |
-| Deployment Ready | ✅ | Vercel-compatible |
+| Deployment Ready | ✅ | Node server compatible |
 
 ---
 
@@ -96,7 +96,7 @@ All tables include proper timestamps and constraints.
 ### Configuration
 - ✅ .env.example template created
 - ✅ Environment variable example provided
-- ✅ Vercel deployment ready
+- ✅ Node server deployment ready
 - ✅ NEON integration tested
 
 ### Documentation
@@ -132,7 +132,7 @@ All tables include proper timestamps and constraints.
 2. Create `.env.local` file
 3. Add `DATABASE_URL=...` 
 4. Test with `/api/health?init=true`
-5. Deploy to Vercel
+5. Deploy with `npm run build` + `npm run start`
 
 ---
 
@@ -147,7 +147,7 @@ All tables include proper timestamps and constraints.
 ### External
 - NEON: https://neon.tech/docs
 - PostgreSQL: https://www.postgresql.org/docs/
-- Vercel: https://vercel.com/docs
+- Replit Deployments: https://docs.replit.com/
 
 ---
 

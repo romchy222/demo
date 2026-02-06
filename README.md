@@ -19,17 +19,24 @@ View your app in AI Studio: https://ai.studio/apps/drive/1LHtYkHX5k891A0edYmyTA3
 3. Run the app:
    `npm run dev` (or `npm.cmd run dev`)
 
-## Deploy to Vercel + Neon (Postgres)
+## Neon (Postgres) setup
 
 1. Create a Neon Postgres project and copy the connection string.
-2. In Vercel project settings add Environment Variables:
+2. Set environment variables (locally / Replit / your host):
    - `GEMINI_API_KEY` — Gemini key for AI responses
    - `DATABASE_URL` — Neon Postgres connection string
-3. Deploy to Vercel (static Vite build). API is served via Vercel Functions in `api/*`.
+3. Initialize DB tables (one time): open `/api/health?init=true` (or `/health?init=true`) while the app is running, or run `npm run db:init`.
 
-Health-check endpoint after deploy: `/api/health`
+Health-check endpoint: `/api/health`
 
 HH proxy endpoint (for vacancies): `/api/hh/vacancies`
+
+## Deploy (Node server + Neon)
+
+This repo includes a small Express server (`server/index.ts`) that serves the built app + NEON API.
+
+1. `npm run build`
+2. `npm run start`
 
 ## Demo accounts
 

@@ -12,10 +12,19 @@ export default defineConfig(({ mode }) => {
         allowedHosts: true,
         proxy: {
           '/api/hh': {
-            target: 'https://api.hh.ru',
+            target: 'http://localhost:5001',
             changeOrigin: true,
-            secure: true,
-            rewrite: (p) => p.replace(/^\/api\/hh/, '')
+            secure: false
+          },
+          '/health': {
+            target: 'http://localhost:5001',
+            changeOrigin: true,
+            secure: false
+          },
+          '/api': {
+            target: 'http://localhost:5001',
+            changeOrigin: true,
+            secure: false
           }
         }
       },

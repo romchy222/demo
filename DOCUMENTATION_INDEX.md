@@ -118,8 +118,8 @@
 - [ ] Test `/api/health?init=true` endpoint
 - [ ] Review [api/EXAMPLES.ts](./api/EXAMPLES.ts) for code patterns
 - [ ] Implement API handlers using database functions
-- [ ] Add DATABASE_URL to Vercel Environment Variables
-- [ ] Deploy to Vercel
+- [ ] Set DATABASE_URL / NEON_DATABASE_URL in your host environment
+- [ ] Deploy using `npm run build` + `npm run start`
 - [ ] Verify live endpoint works
 
 ---
@@ -160,7 +160,7 @@
 - How to create `.env.local`
 - How to test the connection
 - Which database functions to use
-- How to deploy to Vercel
+- How to deploy with the Node server
 
 ✅ You can:
 - Create API handlers using database functions

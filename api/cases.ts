@@ -2,7 +2,7 @@ import { createCase, getCasesByUserAndAgent, initializeTables, updateCase } from
 import type { AgentId, WorkflowCase } from '../types';
 
 function uuid() {
-  // Node 18+ / Vercel has crypto.randomUUID()
+  // Node 18+ has crypto.randomUUID()
   return (globalThis.crypto as any)?.randomUUID?.() ?? `c_${Math.random().toString(16).slice(2)}_${Date.now()}`;
 }
 
@@ -64,4 +64,3 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: e?.message ?? 'unknown' });
   }
 }
-

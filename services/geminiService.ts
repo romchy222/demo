@@ -22,7 +22,7 @@ function getGeminiApiKey(): string {
   const fromVite = (viteEnv?.VITE_GEMINI_API_KEY || viteEnv?.VITE_API_KEY || '') as string;
   if (fromVite) return fromVite;
 
-  // Server-side (Node / Vercel functions)
+  // Server-side (Node API)
   if (typeof process !== 'undefined') {
     return (process.env?.GEMINI_API_KEY || process.env?.API_KEY || '') as string;
   }

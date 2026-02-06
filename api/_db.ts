@@ -2,11 +2,11 @@ import { AgentId, AuditEvent, CaseMessage, Doc, Message, MessageFeedback, Notifi
 
 let sqlInstance: any = null;
 
-// This code should ONLY run on the server side (Vercel Functions / API routes)  
+// This code should ONLY run on the server side (Node/Express API routes)
 // It will throw an error if executed in the browser
 export async function getSql() {
   if (typeof window !== 'undefined') {
-    throw new Error('❌ Database functions can only be called from API routes (server-side), not from the browser.\n\nSolution: Use fetch() to call your API endpoints instead.');
+    throw new Error('❌ Database functions can only be called from server-side API routes, not from the browser.\n\nSolution: Use fetch() to call your API endpoints instead.');
   }
 
   if (sqlInstance) return sqlInstance;

@@ -19,7 +19,7 @@ Create a `.env.local` file in the root directory:
 DATABASE_URL=postgresql://user:password@your-neon-host.neon.tech/your_database
 ```
 
-For production (Vercel), add the same variable to your project settings.
+For production, add the same variable to your hosting environment (Secrets / env vars).
 
 ## 3. Initialize Database
 

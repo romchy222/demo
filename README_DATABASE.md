@@ -197,7 +197,7 @@ export default async function handler(req, res) {
 3. Run `npm run dev`
 4. Done! ✅
 
-### Production (Vercel)
+### Production (Node server)
 1. Add `DATABASE_URL` to Environment Variables
 2. Select all environments (Dev, Preview, Prod)
 3. Deploy
@@ -214,7 +214,7 @@ export default async function handler(req, res) {
 - [ ] Dev server restarted
 - [ ] `/api/health?init=true` returns `{ ok: true }`
 - [ ] `.env.local` is in `.gitignore`
-- [ ] DATABASE_URL added to Vercel
+- [ ] DATABASE_URL / NEON_DATABASE_URL set in environment
 - [ ] All environments selected (Dev, Preview, Prod)
 - [ ] Project redeployed
 - [ ] Live health check passes
@@ -230,7 +230,7 @@ export default async function handler(req, res) {
 | `DATABASE_URL not set` | Restart dev server after creating `.env.local` |
 | Connection timeout | Check NEON project is active |
 | Tables not found | Visit `/api/health?init=true` |
-| Fails on Vercel | Check DATABASE_URL in Vercel settings |
+| Fails in deployment | Check DATABASE_URL / NEON_DATABASE_URL in environment |
 
 ### Documentation
 - **5-min setup:** `QUICK_START.md`
@@ -242,7 +242,7 @@ export default async function handler(req, res) {
 ### External Resources
 - NEON Docs: https://neon.tech/docs
 - PostgreSQL: https://www.postgresql.org/docs/
-- Vercel Env: https://vercel.com/docs/environment-variables
+- Tip: use your host env/Secrets docs
 
 ---
 

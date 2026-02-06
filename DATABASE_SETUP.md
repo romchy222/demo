@@ -15,7 +15,7 @@ Create a `.env.local` file in your project root:
 DATABASE_URL=postgresql://user:password@your-neon-host.neon.tech/your_database
 ```
 
-For **Vercel deployment**, add this to your project settings:
+For deployment, add this to your hosting environment (Secrets / env vars):
 - Go to Settings → Environment Variables
 - Add `DATABASE_URL` with your NEON connection string
 
@@ -228,13 +228,13 @@ async function loadMessages(userId, agentId) {
 ### "DATABASE_URL is not set"
 - Make sure `.env.local` exists in project root
 - Restart development server: `npm run dev`
-- For Vercel, check project Settings → Environment Variables
+- Check your hosting environment variables / Secrets
 
 ### Connection timeouts
 - Verify NEON connection string is correct
 - Check network connection
 - Ensure NEON project is active
-- Check Vercel logs: `vercel logs --follow`
+- Check server logs (Replit logs / your host logs)
 
 ### Tables not created
 - Call `/api/health?init=true` to manually initialize
@@ -248,7 +248,7 @@ async function loadMessages(userId, agentId) {
 ## 📚 Additional Resources
 
 - [NEON Documentation](https://neon.tech/docs)
-- [Vercel Environment Variables](https://vercel.com/docs/environment-variables)
+- Tip: use your host's env var/Secrets docs
 - [PostgreSQL Basics](https://www.postgresql.org/docs/)
 
 ## ✅ Verification Checklist

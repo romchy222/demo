@@ -22,7 +22,7 @@ export default async function handler(req: any, res: any) {
     const upstream = await fetch(url.toString(), {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'bolashak-ai/1.0 (vercel)'
+        'User-Agent': 'bolashak-ai/1.0'
       }
     });
 

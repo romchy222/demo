@@ -41,7 +41,7 @@ DATABASE_URL=postgresql://user:password@host/dbname
 
 ### Step 3: Verify Connection
 ```bash
-curl http://localhost:5173/api/health?init=true
+curl http://localhost:5000/api/health?init=true
 ```
 curl https://c31a474f-4c12-4b9f-bdbd-85c936baca3a-00-271yv00s3ltvg.pike.replit.dev/health/?init=true
 Expected response:
@@ -173,9 +173,9 @@ export default async function handler(req, res) {
 - [ ] `.env.local` created locally
 - [ ] Health check passes
 - [ ] `.env.local` **NOT** committed to git
-- [ ] DATABASE_URL added to Vercel environment variables
+- [ ] DATABASE_URL (or NEON_DATABASE_URL) added to your host environment
 - [ ] All environments (dev, preview, production) configured
-- [ ] Deploy to Vercel
+- [ ] Deploy using the Node server (`npm run build` + `npm run start`)
 - [ ] Verify health check on live deployment
 
 ---
@@ -215,10 +215,9 @@ export default async function handler(req, res) {
 - ✅ Tables auto-create on first use
 - ✅ Safe to call multiple times (uses `IF NOT EXISTS`)
 
-**Vercel deployment issues**
-- ✅ Check DATABASE_URL in Vercel settings
-- ✅ View logs: `vercel logs --follow`
-- ✅ Ensure all environments configured
+**Deployment issues**
+- ✅ Check DATABASE_URL / NEON_DATABASE_URL in your environment
+- ✅ Check server logs (Replit logs / your host logs)
 
 ---
 
@@ -239,7 +238,7 @@ export default async function handler(req, res) {
 2. ✅ Create `.env.local` file
 3. ✅ Test with `/api/health`
 4. ✅ Implement your API handlers using database functions
-5. ✅ Deploy to Vercel with DATABASE_URL environment variable
+5. ✅ Deploy with DATABASE_URL / NEON_DATABASE_URL environment variable
 6. ✅ Monitor and maintain
 
 ---
@@ -248,7 +247,7 @@ export default async function handler(req, res) {
 
 - **NEON Docs:** https://neon.tech/docs
 - **PostgreSQL:** https://www.postgresql.org/docs/
-- **Vercel Env:** https://vercel.com/docs/environment-variables
+- Tip: on Replit put env vars in Secrets / `.replit` userenv.
 - **Serverless Functions:** https://vercel.com/docs/functions
 
 ---

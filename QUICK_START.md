@@ -17,23 +17,18 @@ Create `.env.local` in your project root:
 DATABASE_URL=postgresql://your_user:your_password@your_host/dbname
 ```
 
-### For Vercel Deployment
-1. Go to your Vercel project → Settings
-2. Click "Environment Variables"
-3. Add new variable:
-   - **Name:** `DATABASE_URL`
-   - **Value:** Your NEON connection string
-4. Add to all environments (Development, Preview, Production)
+### For Replit / Hosting
+Set `DATABASE_URL` (or `NEON_DATABASE_URL`) in your host environment / Secrets.
 
 ## 3️⃣ Verify Connection
 
 Run the health check:
 ```bash
 # Local
-curl http://localhost:5173/api/health?init=true
+curl http://localhost:5000/api/health?init=true
 
 # Or visit in browser after deployment
-https://your-project.vercel.app/api/health?init=true
+https://your-domain/api/health?init=true
 ```
 
 Should return:
@@ -100,7 +95,7 @@ Read these files for complete documentation:
 | `DATABASE_URL is not set` | Check `.env.local` and restart server |
 | Connection timeout | Verify NEON project is active |
 | Tables not created | Call `/api/health?init=true` |
-| 500 errors | Check Vercel logs and DATABASE_URL |
+| 500 errors | Check server logs and DATABASE_URL |
 
 ## 🎯 You're Ready!
 

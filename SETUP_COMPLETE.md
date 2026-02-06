@@ -50,7 +50,7 @@ DATABASE_URL=postgresql://user:password@your-neon-host.neon.tech/your_database
 curl http://localhost:5173/api/health?init=true
 ```
 
-### 4. Deploy to Vercel
+### 4. Deploy (Node server + Neon)
 1. Go to project settings
 2. Add `DATABASE_URL` to Environment Variables
 3. Deploy!

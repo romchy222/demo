@@ -74,7 +74,7 @@ If it fails: Check DATABASE_URL in .env.local is correct
    - Value: (paste your PostgreSQL connection string)
    - Environments: Check "Development", "Preview", "Production"
 6. Click "Save"
-7. Vercel will redeploy automatically
+7. Your host will restart/redeploy automatically (or restart it manually if needed)
 8. After deployment, visit: https://your-project.vercel.app/api/health
 
 You should see the same response as local testing
@@ -211,9 +211,9 @@ SOLUTION:
   - Or just make any database call - tables auto-create
   - It's safe to call multiple times
 
-ISSUE: Works locally but fails on Vercel
+ISSUE: Works locally but fails in deployment
 SOLUTION:
-  - Check DATABASE_URL is in Vercel Environment Variables
+  - Check DATABASE_URL / NEON_DATABASE_URL is set in your deployment environment
   - Check it's in ALL environments (Development, Preview, Production)
   - Check the connection string is exactly the same (copy-paste)
   - Check "Environments" checkbox is selected for all three
@@ -243,7 +243,7 @@ Before you start coding:
 ☐ Ready to commit and deploy!
 
 Before you deploy:
-☐ DATABASE_URL added to Vercel Environment Variables
+☐ DATABASE_URL / NEON_DATABASE_URL added to deployment environment
 ☐ Variable is in Development, Preview, AND Production
 ☐ Project redeployed
 ☐ Health check passes on live URL
