@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Notification, User } from '../types';
-import { db } from '../services/dbService';
+import { neonApi } from '../services/neonApi';
 import { useT } from '../i18n/i18n';
 
 interface NotificationsProps {
@@ -15,24 +15,29 @@ function severityBadge(severity?: Notification['severity']) {
 
 export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
   const t = useT();
-  const [items, setItems] = useState<Notification[]>(() => db.notifications.findByUser(user.id));
+  const [items, setItems] = useState<Notification[]>([]);
 
   const unreadCount = useMemo(() => items.filter(n => !n.isRead).length, [items]);
 
-  const refresh = () => setItems(db.notifications.findByUser(user.id));
+  const refresh = async () => setItems(await neonApi.notifications.listByUser(user.id));
 
-  const markRead = (id: string) => {
-    db.notifications.markRead(id);
-    db.audit.log({ actorUserId: user.id, type: 'notification_read', details: { id } });
-    refresh();
+  React.useEffect(() => {
+    void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user.id]);
+
+  const markRead = async (id: string) => {
+    await neonApi.notifications.markRead(id);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'notification_read', details: { id } });
+    await refresh();
   };
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     for (const n of items) {
-      if (!n.isRead) db.notifications.markRead(n.id);
+      if (!n.isRead) await neonApi.notifications.markRead(n.id);
     }
-    db.audit.log({ actorUserId: user.id, type: 'notification_read_all' });
-    refresh();
+    void neonApi.audit.log({ actorUserId: user.id, type: 'notification_read_all' });
+    await refresh();
   };
 
   return (

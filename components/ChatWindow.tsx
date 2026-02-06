@@ -4,9 +4,9 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Agent, Doc, Message, User } from '../types';
 import { GEMINI_MODEL_NAME, getAgentResponse, hasGeminiApiKey } from '../services/geminiService';
-import { db } from '../services/dbService';
 import { makeId } from '../services/id';
 import { useI18n } from '../i18n/i18n';
+import { neonApi } from '../services/neonApi';
 
 interface ChatWindowProps {
   agent: Agent;
@@ -17,6 +17,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const agentName = t(agent.nameKey ?? '', undefined, agent.name);
   const agentFullName = t(agent.fullNameKey ?? '', undefined, agent.fullName);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [feedbackByMessageId, setFeedbackByMessageId] = useState<Record<string, 1 | -1>>({});
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -31,13 +32,68 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const hasApiKey = hasGeminiApiKey();
 
   useEffect(() => {
-    const history = db.messages.findByUserAndAgent(user.id, agent.id);
-    setMessages(history);
+    let canceled = false;
+    (async () => {
+      try {
+        const history = await neonApi.messages.listByUserAndAgent(user.id, agent.id);
+        if (!canceled) setMessages(history);
+      } catch (e) {
+        console.error(e);
+        if (!canceled) setMessages([]);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
   }, [agent.id, user.id]);
 
   useEffect(() => {
-    setDocs(db.docs.findByUser(user.id));
+    let canceled = false;
+    (async () => {
+      try {
+        const list = await neonApi.docs.listByUser(user.id);
+        if (!canceled) setDocs(list);
+      } catch (e) {
+        console.error(e);
+        if (!canceled) setDocs([]);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
   }, [user.id]);
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const candidates = messages.filter(m => m.role === 'model').slice(-40).map(m => m.id);
+        const uniq = [...new Set(candidates)].filter(Boolean);
+        const rows = await Promise.all(
+          uniq.map(async (id) => {
+            try {
+              const fb = await neonApi.feedback.getByMessage(id);
+              return fb ? ([id, fb.rating] as const) : null;
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (canceled) return;
+        const next: Record<string, 1 | -1> = {};
+        for (const r of rows) {
+          if (!r) continue;
+          next[r[0]] = r[1];
+        }
+        setFeedbackByMessageId(prev => ({ ...prev, ...next }));
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [messages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -89,14 +145,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     }
 
     download(`chat_${agent.id}_${now.replace(/[:.]/g, '-')}.md`, lines.join('\n'), 'text/markdown;charset=utf-8');
-    db.audit.log({ actorUserId: user.id, type: 'chat_export', details: { agentId: agent.id, format: 'md' } });
+    void neonApi.audit.log({ actorUserId: user.id, type: 'chat_export', details: { agentId: agent.id, format: 'md' } });
   };
 
   const clearChat = () => {
     if (!confirm(t('chat.confirm.clear', { name: agentName }))) return;
-    db.messages.clear(user.id, agent.id);
+    void neonApi.messages.clear(user.id, agent.id);
     setMessages([]);
-    db.audit.log({ actorUserId: user.id, type: 'chat_clear', details: { agentId: agent.id } });
+    void neonApi.audit.log({ actorUserId: user.id, type: 'chat_clear', details: { agentId: agent.id } });
   };
 
   const scoreDoc = (query: string, doc: Doc): number => {
@@ -134,7 +190,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   };
 
   const setRating = (messageId: string, rating: 1 | -1) => {
-    db.feedback.upsert({
+    void neonApi.feedback.upsert({
       id: makeId('f_'),
       messageId,
       userId: user.id,
@@ -142,8 +198,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
       rating,
       createdAt: new Date().toISOString()
     });
-    db.audit.log({ actorUserId: user.id, type: 'feedback', details: { agentId: agent.id, messageId, rating } });
-    setMessages(prev => [...prev]);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'feedback', details: { agentId: agent.id, messageId, rating } });
+    setFeedbackByMessageId(prev => ({ ...prev, [messageId]: rating }));
   };
 
   // Голосовой ввод (Web Speech API)
@@ -210,7 +266,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     };
 
     setMessages(prev => [...prev, userMsg]);
-    db.messages.save(userMsg);
+    void neonApi.messages.save(userMsg);
     if (!override?.text) setInput('');
     if (!override?.attachment) setAttachment(null);
     setIsLoading(true);
@@ -226,7 +282,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
       : userMsg.content;
 
     if (docsContext) {
-      db.audit.log({ actorUserId: user.id, type: 'docs_context_used', details: { agentId: agent.id } });
+      void neonApi.audit.log({ actorUserId: user.id, type: 'docs_context_used', details: { agentId: agent.id } });
     }
 
     const startedAt = performance.now();
@@ -244,8 +300,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     };
 
     setMessages(prev => [...prev, botMsg]);
-    db.messages.save(botMsg);
-    db.audit.log({ actorUserId: user.id, type: 'ai_response', details: { agentId: agent.id, latencyMs } });
+    void neonApi.messages.save(botMsg);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'ai_response', details: { agentId: agent.id, latencyMs } });
     setIsLoading(false);
   };
 
@@ -346,7 +402,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
                             <i className="fas fa-copy"></i>
                         </button>
                         {(() => {
-                            const fb = db.feedback.findByMessage(m.id);
+                            const fb = feedbackByMessageId[m.id] ? { rating: feedbackByMessageId[m.id] } : undefined;
                             const upActive = fb?.rating === 1;
                             const downActive = fb?.rating === -1;
                             return (

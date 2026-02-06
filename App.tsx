@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AGENTS } from './constants';
-import { AgentId, User } from './types';
+import { AgentId, Doc, Notification, User } from './types';
 import ChatWindow from './components/ChatWindow';
 import AdminPanel from './components/AdminPanel';
 import { Auth } from './components/Auth';
@@ -12,9 +12,9 @@ import { Notifications } from './components/Notifications';
 import { VacanciesPanel } from './components/VacanciesPanel';
 import { Home } from './components/Home';
 import { AgentToolsPanel } from './components/AgentToolsPanel';
-import { db } from './services/dbService';
 import { useI18n } from './i18n/i18n';
 import { LanguageSelect } from './components/LanguageSelect';
+import { neonApi } from './services/neonApi';
 
 // Защищенный маршрут
 const ProtectedRoute: React.FC<{ children: React.ReactNode; user: User | null; minRole?: string }> = ({ children, user, minRole }) => {
@@ -45,7 +45,22 @@ const AuthRoute: React.FC<{ user: User | null; onLogin: (u: User) => void }> = (
 
 const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => void }> = ({ user, activeAgentId, onLogout }) => {
   const { t } = useI18n();
-  const unreadNotifications = db.notifications.countUnread(user.id);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const count = await neonApi.notifications.countUnread(user.id);
+        if (!canceled) setUnreadNotifications(count);
+      } catch {
+        if (!canceled) setUnreadNotifications(0);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user.id]);
 
   return (
     <div className="w-72 bg-slate-900 text-white flex flex-col h-full shrink-0 shadow-2xl relative z-20">
@@ -213,10 +228,41 @@ const DashboardWidget: React.FC<{
 
 const Dashboard: React.FC<{ user: User }> = ({ user }) => {
     const { t } = useI18n();
-    const notifications = db.notifications.findByUser(user.id);
+    const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [docsCount, setDocsCount] = useState(0);
+
+    useEffect(() => {
+      let canceled = false;
+      (async () => {
+        try {
+          const list = await neonApi.notifications.listByUser(user.id);
+          if (!canceled) setNotifications(list);
+        } catch {
+          if (!canceled) setNotifications([]);
+        }
+      })();
+      return () => {
+        canceled = true;
+      };
+    }, [user.id]);
+
+    useEffect(() => {
+      let canceled = false;
+      (async () => {
+        try {
+          const docs = await neonApi.docs.listByUser(user.id);
+          if (!canceled) setDocsCount(docs.length);
+        } catch {
+          if (!canceled) setDocsCount(0);
+        }
+      })();
+      return () => {
+        canceled = true;
+      };
+    }, [user.id]);
+
     const unreadNotifications = notifications.filter(n => !n.isRead).length;
     const latestNotification = notifications[0];
-    const docsCount = db.docs.findByUser(user.id).length;
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
@@ -351,6 +397,59 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
   const navigate = useNavigate();
   const [globalQuery, setGlobalQuery] = useState('');
   const [isGlobalOpen, setIsGlobalOpen] = useState(false);
+  const [docsIndex, setDocsIndex] = useState<Doc[]>([]);
+  const [usersIndex, setUsersIndex] = useState<User[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const docs = await neonApi.docs.listByUser(user.id);
+        if (!canceled) setDocsIndex(docs);
+      } catch {
+        if (!canceled) setDocsIndex([]);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user.id]);
+
+  useEffect(() => {
+    if (user.role !== 'ADMIN') {
+      setUsersIndex([]);
+      return;
+    }
+
+    let canceled = false;
+    (async () => {
+      try {
+        const users = (await neonApi.users.list()) as any;
+        if (!canceled) setUsersIndex(users);
+      } catch {
+        if (!canceled) setUsersIndex([]);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user.role]);
+
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const c = await neonApi.notifications.countUnread(user.id);
+        if (!canceled) setUnreadCount(c);
+      } catch {
+        if (!canceled) setUnreadCount(0);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user.id, currentId]);
 
   const globalResults = useMemo(() => {
     const q = globalQuery.trim().toLowerCase();
@@ -388,8 +487,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
       });
     }
 
-    const docs = db.docs.findByUser(user.id);
-    for (const d of docs) {
+    for (const d of docsIndex) {
       const hay = `${d.title}\n${d.content}`.toLowerCase();
       if (!hay.includes(q)) continue;
       items.push({
@@ -402,8 +500,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
     }
 
     if (user.role === 'ADMIN') {
-      const users = db.users.findAll();
-      for (const u of users) {
+      for (const u of usersIndex) {
         const hay = `${u.name} ${u.email} ${u.role} ${u.department ?? ''}`.toLowerCase();
         if (!hay.includes(q)) continue;
         items.push({
@@ -417,7 +514,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
     }
 
     return items.slice(0, 10);
-  }, [globalQuery, t, user.id, user.role]);
+  }, [globalQuery, t, user.id, user.role, docsIndex, usersIndex]);
 
   const runGlobalNavigate = (to: string) => {
     navigate(to);
@@ -493,7 +590,7 @@ const Layout: React.FC<{ children: React.ReactNode; user: User; currentId?: stri
           <div className="flex items-center gap-4">
              <Link to="/notifications" className="w-10 h-10 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-amber-500 hover:shadow-md transition-all flex items-center justify-center relative">
                  <i className="fas fa-bell"></i>
-                 {db.notifications.countUnread(user.id) > 0 && (
+                 {unreadCount > 0 && (
                     <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
                  )}
              </Link>
@@ -517,7 +614,6 @@ const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    db.init(); // Инициализация БД
     const saved = localStorage.getItem('bolashak_auth_session');
     if (saved) {
       setCurrentUser(JSON.parse(saved));

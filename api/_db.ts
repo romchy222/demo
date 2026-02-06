@@ -1,4 +1,5 @@
 import { AgentId, AuditEvent, CaseMessage, Doc, Message, MessageFeedback, Notification, UiItem, UiItemKind, User, WorkflowCase } from '../types';
+import { hashPassword } from '../services/password';
 
 let sqlInstance: any = null;
 
@@ -157,6 +158,26 @@ export async function initializeTables() {
 
   // Seed minimal UI items (safe, idempotent)
   const now = new Date().toISOString();
+
+  // Seed demo users (safe, idempotent)
+  const seedAdminHash = hashPassword('password');
+  await sql`
+    INSERT INTO tbl_users (id, email, name, role, password_hash, joined_at)
+    VALUES
+      ('1', 'admin@bolashak.kz', 'Администратор системы', 'ADMIN', ${seedAdminHash}, ${now}),
+      ('2', 'student@bolashak.kz', 'Иван Иванов', 'STUDENT', ${seedAdminHash}, ${now}),
+      ('3', 'profi@bolashak.kz', 'Д-р Ахметов', 'FACULTY', ${seedAdminHash}, ${now})
+    ON CONFLICT (id) DO NOTHING
+  `;
+
+  // Seed demo notifications (safe, idempotent)
+  await sql`
+    INSERT INTO tbl_notifications (id, user_id, title, message, is_read, severity, created_by, created_at)
+    VALUES
+      ('seed_n1', '2', 'Добро пожаловать в Bolashak AI', 'Здесь появятся важные уведомления: приказы, дедлайны, объявления кафедры.', false, 'INFO', 'SYSTEM', ${now}),
+      ('seed_n2', '2', 'Приказ №124', 'Ознакомьтесь с новым приказом и подтвердите прочтение в личном кабинете.', false, 'WARN', 'SYSTEM', ${now})
+    ON CONFLICT (id) DO NOTHING
+  `;
   await sql`
     INSERT INTO tbl_ui_items (id, agent_id, kind, group_key, title, content, meta, sort, created_at, updated_at)
     VALUES

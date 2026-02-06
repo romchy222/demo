@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { db } from '../services/dbService';
+import { neonApi } from '../services/neonApi';
 import { useT } from '../i18n/i18n';
 
 interface ProfileProps {
@@ -14,14 +14,17 @@ export const Profile: React.FC<ProfileProps> = ({ user, onUpdate }) => {
   const [name, setName] = useState(user.name);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => {
-      db.users.update(user.id, { name });
+    try {
+      await neonApi.users.update(user.id, { name });
       onUpdate({ ...user, name });
-      setIsSaving(false);
       alert(t('profile.updated'));
-    }, 600);
+    } catch (e: any) {
+      alert(String(e?.message ?? 'Error'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (

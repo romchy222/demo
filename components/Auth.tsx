@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { db } from '../services/dbService';
 import { User } from '../types';
-import { hashPassword, verifyPassword } from '../services/password';
+import { neonApi } from '../services/neonApi';
 import { useT } from '../i18n/i18n';
 import { LanguageSelect } from './LanguageSelect';
 
@@ -17,34 +16,31 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [name, setName] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (isLogin) {
-      const user = db.users.findByEmail(email);
-      if (user) {
-        if (!verifyPassword(password, user.passwordHash)) {
-          setError(t('auth.err.invalidPassword'));
-          return;
-        }
-        onLogin(user);
-      } else {
-        setError(t('auth.err.userNotFound'));
+      try {
+        const user = await neonApi.auth.login(email, password);
+        onLogin(user as User);
+      } catch (e: any) {
+        const msg = String(e?.message || '');
+        if (msg.includes('401')) return setError(t('auth.err.invalidPassword'));
+        if (msg.includes('404')) return setError(t('auth.err.userNotFound'));
+        setError(msg);
       }
     } else {
       if (!name || !email) return setError(t('auth.err.fillAll'));
       if (!password || password.length < 6) return setError(t('auth.err.passwordMin'));
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        email,
-        name,
-        role: 'STUDENT',
-        passwordHash: hashPassword(password),
-        joinedAt: new Date().toISOString()
-      };
-      db.users.create(newUser);
-      onLogin(newUser);
+      try {
+        const user = await neonApi.auth.register(name, email, password);
+        onLogin(user as User);
+      } catch (e: any) {
+        const msg = String(e?.message || '');
+        if (msg.includes('409')) return setError(t('admin.users.err.emailExists'));
+        setError(msg);
+      }
     }
   };
 

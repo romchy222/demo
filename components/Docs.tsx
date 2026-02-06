@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Doc, User } from '../types';
-import { db } from '../services/dbService';
 import { makeId } from '../services/id';
 import { useI18n } from '../i18n/i18n';
+import { neonApi } from '../services/neonApi';
 
 interface DocsProps {
   user: User;
@@ -12,7 +12,7 @@ interface DocsProps {
 export const Docs: React.FC<DocsProps> = ({ user }) => {
   const { t, locale } = useI18n();
   const location = useLocation();
-  const [docs, setDocs] = useState<Doc[]>(() => db.docs.findByUser(user.id));
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [query, setQuery] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -28,9 +28,25 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
     return docs.filter(d => `${d.title}\n${d.content}`.toLowerCase().includes(q));
   }, [docs, query]);
 
-  const refresh = () => setDocs(db.docs.findByUser(user.id));
+  const refresh = async () => setDocs(await neonApi.docs.listByUser(user.id));
 
-  const createDoc = () => {
+  useEffect(() => {
+    let canceled = false;
+    (async () => {
+      try {
+        const list = await neonApi.docs.listByUser(user.id);
+        if (!canceled) setDocs(list);
+      } catch (e) {
+        console.error(e);
+        if (!canceled) setDocs([]);
+      }
+    })();
+    return () => {
+      canceled = true;
+    };
+  }, [user.id]);
+
+  const createDoc = async () => {
     if (!title.trim() || !content.trim()) return;
     const doc: Doc = {
       id: makeId('d_'),
@@ -39,18 +55,18 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
       content: content.trim(),
       createdAt: new Date().toISOString()
     };
-    db.docs.create(doc);
-    db.audit.log({ actorUserId: user.id, type: 'doc_create', details: { docId: doc.id, title: doc.title } });
+    await neonApi.docs.create(doc);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'doc_create', details: { docId: doc.id, title: doc.title } });
     setTitle('');
     setContent('');
-    refresh();
+    await refresh();
   };
 
-  const removeDoc = (id: string) => {
+  const removeDoc = async (id: string) => {
     if (!confirm(t('docs.confirmDelete'))) return;
-    db.docs.remove(id);
-    db.audit.log({ actorUserId: user.id, type: 'doc_delete', details: { docId: id } });
-    refresh();
+    await neonApi.docs.remove(id);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'doc_delete', details: { docId: id } });
+    await refresh();
   };
 
   const startEdit = (doc: Doc) => {
@@ -77,12 +93,12 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
     }
   }, [docs, location.search, query]);
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId) return;
-    db.docs.update(editingId, { title: editTitle.trim(), content: editContent.trim() });
-    db.audit.log({ actorUserId: user.id, type: 'doc_update', details: { docId: editingId } });
+    await neonApi.docs.update(editingId, { title: editTitle.trim(), content: editContent.trim() });
+    void neonApi.audit.log({ actorUserId: user.id, type: 'doc_update', details: { docId: editingId } });
     setEditingId(null);
-    refresh();
+    await refresh();
   };
 
   const handleUpload = async (file: File) => {
@@ -94,9 +110,9 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
       content: text,
       createdAt: new Date().toISOString()
     };
-    db.docs.create(doc);
-    db.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
-    refresh();
+    await neonApi.docs.create(doc);
+    void neonApi.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
+    await refresh();
   };
 
   return (

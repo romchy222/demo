@@ -7,6 +7,14 @@ import uiItemsHandler from '../api/ui-items.ts';
 import casesHandler from '../api/cases.ts';
 import caseMessagesHandler from '../api/case-messages.ts';
 import hhVacanciesHandler from '../api/hh/vacancies.ts';
+import authHandler from '../api/auth.ts';
+import usersHandler from '../api/users.ts';
+import messagesHandler from '../api/messages.ts';
+import docsHandler from '../api/docs.ts';
+import notificationsHandler from '../api/notifications.ts';
+import feedbackHandler from '../api/feedback.ts';
+import auditHandler from '../api/audit.ts';
+import backupHandler from '../api/backup.ts';
 
 type AnyHandler = (req: any, res: any) => Promise<any> | any;
 
@@ -32,7 +40,15 @@ app.all('/health', wrap(healthHandler));
 app.all('/api/health', wrap(healthHandler));
 
 // NEON-backed API
+app.all('/api/auth', wrap(authHandler));
 app.all('/api/ui-items', wrap(uiItemsHandler));
+app.all('/api/users', wrap(usersHandler));
+app.all('/api/messages', wrap(messagesHandler));
+app.all('/api/docs', wrap(docsHandler));
+app.all('/api/notifications', wrap(notificationsHandler));
+app.all('/api/feedback', wrap(feedbackHandler));
+app.all('/api/audit', wrap(auditHandler));
+app.all('/api/backup', wrap(backupHandler));
 app.all('/api/cases', wrap(casesHandler));
 app.all('/api/case-messages', wrap(caseMessagesHandler));
 app.all('/api/hh/vacancies', wrap(hhVacanciesHandler));
@@ -51,7 +67,7 @@ if (hasDist) {
   );
 }
 
-const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || 5001;
+const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || (hasDist ? 5000 : 5001);
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`API server listening on http://0.0.0.0:${port}`);

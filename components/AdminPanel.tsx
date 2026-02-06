@@ -1,11 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { AGENTS } from '../constants';
-import { Role, User } from '../types';
-import { db } from '../services/dbService';
-import { makeId } from '../services/id';
-import { hashPassword } from '../services/password';
+import { AuditEvent, Doc, Message, MessageFeedback, Notification, Role, User } from '../types';
 import { useI18n } from '../i18n/i18n';
+import { neonApi } from '../services/neonApi';
 
 type Tab = 'stats' | 'users' | 'broadcast' | 'audit' | 'backup';
 
@@ -29,6 +27,13 @@ const AdminPanel: React.FC = () => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>('stats');
   const [refreshTick, setRefreshTick] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [allMessages, setAllMessages] = useState<Message[]>([]);
+  const [allFeedback, setAllFeedback] = useState<MessageFeedback[]>([]);
+  const [allDocs, setAllDocs] = useState<Doc[]>([]);
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
 
   const [userQuery, setUserQuery] = useState('');
   const [newUserName, setNewUserName] = useState('');
@@ -43,12 +48,52 @@ const AdminPanel: React.FC = () => {
 
   const importFileRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    let canceled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const [users, messages, feedback, docs, notifications, audit] = await Promise.all([
+          neonApi.users.list(),
+          neonApi.messages.listAll(),
+          neonApi.feedback.listAll(),
+          neonApi.docs.listAll(),
+          neonApi.notifications.listAll(),
+          neonApi.audit.list()
+        ]);
+
+        if (canceled) return;
+        setAllUsers(users as any);
+        setAllMessages(messages);
+        setAllFeedback(feedback);
+        setAllDocs(docs);
+        setAllNotifications(notifications);
+        setAuditEvents(audit);
+      } catch (e) {
+        console.error(e);
+        if (canceled) return;
+        setAllUsers([]);
+        setAllMessages([]);
+        setAllFeedback([]);
+        setAllDocs([]);
+        setAllNotifications([]);
+        setAuditEvents([]);
+      } finally {
+        if (!canceled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [refreshTick]);
+
   const analytics = useMemo(() => {
-    const users = db.users.findAll();
-    const messages = db.messages.findAll();
-    const feedback = db.feedback.findAll();
-    const docs = db.docs.findAll();
-    const notifications = db.notifications.findAll();
+    const users = allUsers;
+    const messages = allMessages;
+    const feedback = allFeedback;
+    const docs = allDocs;
+    const notifications = allNotifications;
 
     const userMessages = messages.filter(m => m.role === 'user');
     const modelMessages = messages.filter(m => m.role === 'model');
@@ -102,42 +147,43 @@ const AdminPanel: React.FC = () => {
       perAgent,
       timeline
     };
-  }, [refreshTick, t]);
+  }, [allUsers, allMessages, allFeedback, allDocs, allNotifications, t]);
 
   const users = useMemo(() => {
-    const all = db.users.findAll();
+    const all = allUsers;
     const q = userQuery.trim().toLowerCase();
     if (!q) return all;
     return all.filter(u => `${u.name} ${u.email} ${u.role} ${u.department ?? ''}`.toLowerCase().includes(q));
-  }, [refreshTick, userQuery]);
+  }, [allUsers, userQuery]);
 
-  const audit = useMemo(() => db.audit.list().slice(0, 80), [refreshTick]);
+  const audit = useMemo(() => auditEvents.slice(0, 80), [auditEvents]);
 
   const makeRefresh = () => setRefreshTick(x => x + 1);
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    db.users.update(id, updates);
-    db.audit.log({ type: 'admin_user_update', details: { id, updates } });
+  const updateUser = async (id: string, updates: Partial<User>) => {
+    await neonApi.users.update(id, updates as any);
+    void neonApi.audit.log({ type: 'admin_user_update', details: { id, updates } });
     makeRefresh();
   };
 
-  const createUser = () => {
+  const createUser = async () => {
     if (!newUserEmail.trim() || !newUserName.trim()) return;
     if (!newUserPassword || newUserPassword.length < 6) return alert(t('admin.users.err.passwordMin'));
-    const existing = db.users.findByEmail(newUserEmail.trim());
-    if (existing) return alert(t('admin.users.err.emailExists'));
 
-    const user: User = {
-      id: makeId('u_'),
-      email: newUserEmail.trim(),
-      name: newUserName.trim(),
-      role: newUserRole,
-      department: newUserDept.trim() || undefined,
-      passwordHash: hashPassword(newUserPassword),
-      joinedAt: new Date().toISOString()
-    };
-    db.users.create(user);
-    db.audit.log({ type: 'admin_user_create', details: { id: user.id, email: user.email, role: user.role } });
+    try {
+      const user = await neonApi.users.create({
+        email: newUserEmail.trim(),
+        name: newUserName.trim(),
+        role: newUserRole,
+        department: newUserDept.trim() || undefined,
+        password: newUserPassword
+      });
+      void neonApi.audit.log({ type: 'admin_user_create', details: { id: (user as any).id, email: (user as any).email, role: (user as any).role } });
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      if (msg.includes('409')) return alert(t('admin.users.err.emailExists'));
+      return alert(msg);
+    }
     setNewUserEmail('');
     setNewUserName('');
     setNewUserPassword('password');
@@ -146,27 +192,27 @@ const AdminPanel: React.FC = () => {
     makeRefresh();
   };
 
-  const sendBroadcast = () => {
+  const sendBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
-    db.notifications.broadcast(broadcastTitle.trim(), broadcastMessage.trim(), { severity: broadcastSeverity, createdBy: 'ADMIN' });
-    db.audit.log({ type: 'admin_broadcast', details: { severity: broadcastSeverity } });
+    await neonApi.notifications.broadcast({ title: broadcastTitle.trim(), message: broadcastMessage.trim(), severity: broadcastSeverity });
+    void neonApi.audit.log({ type: 'admin_broadcast', details: { severity: broadcastSeverity } });
     setBroadcastMessage('');
     makeRefresh();
     alert(t('admin.broadcast.sent'));
   };
 
-  const exportBackup = () => {
-    const bundle = db.exportAll();
+  const exportBackup = async () => {
+    const bundle = await neonApi.backup.export();
     download(`bolashak_ai_backup_${bundle.exportedAt.replace(/[:.]/g, '-')}.json`, JSON.stringify(bundle, null, 2));
-    db.audit.log({ type: 'admin_backup_export' });
+    void neonApi.audit.log({ type: 'admin_backup_export' });
     makeRefresh();
   };
 
   const importBackup = async (file: File, mode: 'replace' | 'merge') => {
     const text = await file.text();
     const bundle = JSON.parse(text);
-    db.importAll(bundle, { mode });
-    db.audit.log({ type: 'admin_backup_import', details: { mode, filename: file.name } });
+    await neonApi.backup.import(bundle, mode);
+    void neonApi.audit.log({ type: 'admin_backup_import', details: { mode, filename: file.name } });
     makeRefresh();
     alert(t('admin.backup.importDone'));
   };
@@ -499,9 +545,9 @@ const AdminPanel: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">{t('admin.audit.subtitle')}</p>
             </div>
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!confirm(t('admin.audit.confirmClear'))) return;
-                db.audit.clear();
+                await neonApi.audit.clear();
                 makeRefresh();
               }}
               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-rose-600 hover:bg-slate-50"
