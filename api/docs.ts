@@ -1,4 +1,4 @@
-import { createDoc, getDocs, getDocsByUser, initializeTables, removeDoc, updateDoc } from './_db';
+import { createDoc, getDocs, getDocsByUser, initializeTables, removeDoc, updateDoc } from './_db.ts';
 import type { Doc } from '../types';
 
 export default async function handler(req: any, res: any) {

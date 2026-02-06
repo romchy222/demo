@@ -1,6 +1,6 @@
-import { createUser, getUserByEmail, initializeTables } from './_db';
+import { createUser, getUserByEmail, initializeTables } from './_db.ts';
 import type { User } from '../types';
-import { hashPassword, verifyPassword } from '../services/password';
+import { hashPassword, verifyPassword } from '../services/password.ts';
 
 function uuid() {
   return (globalThis.crypto as any)?.randomUUID?.() ?? `u_${Math.random().toString(16).slice(2)}_${Date.now()}`;

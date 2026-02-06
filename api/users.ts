@@ -1,6 +1,6 @@
-import { createUser, getUsers, initializeTables, updateUser } from './_db';
+import { createUser, getUsers, initializeTables, updateUser } from './_db.ts';
 import type { User } from '../types';
-import { hashPassword } from '../services/password';
+import { hashPassword } from '../services/password.ts';
 
 function strip(user: User) {
   const { passwordHash, ...rest } = user;

@@ -1,4 +1,4 @@
-import { getSql, initializeTables } from './_db';
+import { getSql, initializeTables } from './_db.ts';
 import type { AuditEvent, Doc, Message, MessageFeedback, Notification, User } from '../types';
 
 type Mode = 'replace' | 'merge';

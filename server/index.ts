@@ -67,7 +67,7 @@ if (hasDist) {
   );
 }
 
-const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || (hasDist ? 5000 : 5001);
+const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || 5001;
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`API server listening on http://0.0.0.0:${port}`);

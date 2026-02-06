@@ -1,4 +1,4 @@
-import { broadcastNotification, countUnreadNotifications, createNotification, getNotifications, getNotificationsByUser, initializeTables, markNotificationAsRead } from './_db';
+import { broadcastNotification, countUnreadNotifications, createNotification, getNotifications, getNotificationsByUser, initializeTables, markNotificationAsRead } from './_db.ts';
 import type { Notification } from '../types';
 
 export default async function handler(req: any, res: any) {

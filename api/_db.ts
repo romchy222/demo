@@ -1,5 +1,5 @@
 import { AgentId, AuditEvent, CaseMessage, Doc, Message, MessageFeedback, Notification, UiItem, UiItemKind, User, WorkflowCase } from '../types';
-import { hashPassword } from '../services/password';
+import { hashPassword } from '../services/password.ts';
 
 let sqlInstance: any = null;
 

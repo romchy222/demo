@@ -1,4 +1,4 @@
-import { getFeedback, getFeedbackByMessage, initializeTables, upsertFeedback } from './_db';
+import { getFeedback, getFeedbackByMessage, initializeTables, upsertFeedback } from './_db.ts';
 import type { MessageFeedback } from '../types';
 
 export default async function handler(req: any, res: any) {

@@ -1,4 +1,4 @@
-import { clearAuditLog, getAuditLog, initializeTables, logAuditEvent } from './_db';
+import { clearAuditLog, getAuditLog, initializeTables, logAuditEvent } from './_db.ts';
 import type { AuditEvent } from '../types';
 
 export default async function handler(req: any, res: any) {

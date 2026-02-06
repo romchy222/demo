@@ -1,4 +1,4 @@
-import { clearMessages, getMessages, getMessagesByUserAndAgent, initializeTables, saveMessage } from './_db';
+import { clearMessages, getMessages, getMessagesByUserAndAgent, initializeTables, saveMessage } from './_db.ts';
 import type { Message } from '../types';
 
 export default async function handler(req: any, res: any) {
