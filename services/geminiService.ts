@@ -30,6 +30,10 @@ function getGeminiApiKey(): string {
   return '';
 }
 
+export function hasGeminiApiKey(): boolean {
+  return Boolean(getGeminiApiKey());
+}
+
 export async function getAgentResponse(
   agentInstruction: string, 
   history: { role: 'user' | 'model', content: string }[], 

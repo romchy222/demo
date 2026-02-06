@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Agent, Doc, Message, User } from '../types';
-import { GEMINI_MODEL_NAME, getAgentResponse } from '../services/geminiService';
+import { GEMINI_MODEL_NAME, getAgentResponse, hasGeminiApiKey } from '../services/geminiService';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
 import { useI18n } from '../i18n/i18n';
@@ -28,7 +28,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const sendRef = useRef<(override?: { text?: string; attachment?: string | null }) => void>(() => {});
   
   const user: User = JSON.parse(localStorage.getItem('bolashak_auth_session') || '{}');
-  const hasApiKey = Boolean(((import.meta as any)?.env?.VITE_GEMINI_API_KEY || (import.meta as any)?.env?.VITE_API_KEY) as string);
+  const hasApiKey = hasGeminiApiKey();
 
   useEffect(() => {
     const history = db.messages.findByUserAndAgent(user.id, agent.id);
