@@ -79,3 +79,51 @@ export interface AuditEvent {
   type: string;
   details?: Record<string, unknown>;
 }
+
+export type UiItemKind =
+  | 'category'
+  | 'quick'
+  | 'reference'
+  | 'topic'
+  | 'procedure'
+  | 'request'
+  | 'schedule'
+  | 'direction'
+  | 'offer'
+  | 'resume_tip';
+
+export interface UiItem {
+  id: string;
+  agentId: AgentId;
+  kind: UiItemKind;
+  groupKey?: string | null;
+  title: string;
+  content?: string | null;
+  meta?: Record<string, unknown> | null;
+  sort: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CaseStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+
+export interface WorkflowCase {
+  id: string;
+  userId: string;
+  agentId: AgentId;
+  caseType: string;
+  title?: string | null;
+  status: CaseStatus;
+  payload?: Record<string, unknown> | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CaseMessage {
+  id: string;
+  caseId: string;
+  authorUserId?: string | null;
+  authorRole: 'USER' | 'ADMIN';
+  message: string;
+  createdAt: string;
+}

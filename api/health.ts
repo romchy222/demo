@@ -2,7 +2,7 @@ import { getSql, initializeTables } from './_db';
 
 export default async function handler(req: any, res: any) {
   try {
-    const sql = getSql();
+    const sql = await getSql();
     
     // Test connection
     await sql`select 1 as ok`;

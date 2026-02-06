@@ -25,6 +25,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const [docs, setDocs] = useState<Doc[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const sendRef = useRef<(override?: { text?: string; attachment?: string | null }) => void>(() => {});
   
   const user: User = JSON.parse(localStorage.getItem('bolashak_auth_session') || '{}');
   const hasApiKey = Boolean(((import.meta as any)?.env?.VITE_GEMINI_API_KEY || (import.meta as any)?.env?.VITE_API_KEY) as string);
@@ -43,6 +44,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
   }, [messages, isLoading, attachment]);
+
+  useEffect(() => {
+    const onPrompt = (e: any) => {
+      const detail = e?.detail;
+      if (!detail || detail.agentId !== agent.id) return;
+      const text = String(detail.text || '').trim();
+      if (!text) return;
+      sendRef.current({ text });
+    };
+
+    window.addEventListener('bolashak:agent-prompt', onPrompt as any);
+    return () => window.removeEventListener('bolashak:agent-prompt', onPrompt as any);
+  }, [agent.id]);
 
   const download = (filename: string, content: string, mime = 'text/plain;charset=utf-8') => {
     const blob = new Blob([content], { type: mime });
@@ -180,23 +194,25 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     }
   };
 
-  const handleSend = async () => {
-    if ((!input.trim() && !attachment) || isLoading) return;
+  const handleSend = async (override?: { text?: string; attachment?: string | null }) => {
+    const text = override?.text ?? input;
+    const att = override?.attachment ?? attachment;
+    if ((!text.trim() && !att) || isLoading) return;
 
     const userMsg: Message = {
       id: Date.now().toString(),
       userId: user.id,
       agentId: agent.id,
       role: 'user',
-      content: input,
-      attachment: attachment || undefined,
+      content: text,
+      attachment: att || undefined,
       timestamp: new Date().toISOString()
     };
 
     setMessages(prev => [...prev, userMsg]);
     db.messages.save(userMsg);
-    setInput('');
-    setAttachment(null);
+    if (!override?.text) setInput('');
+    if (!override?.attachment) setAttachment(null);
     setIsLoading(true);
 
     const historyForAi = messages.slice(-8).map(m => ({
@@ -232,6 +248,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     db.audit.log({ actorUserId: user.id, type: 'ai_response', details: { agentId: agent.id, latencyMs } });
     setIsLoading(false);
   };
+
+  sendRef.current = handleSend;
 
   return (
     <div className="flex flex-col h-full bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden animate-fade-in relative">
@@ -425,7 +443,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
           </button>
 
           <button 
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={(!input.trim() && !attachment) || isLoading}
             className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-all ${
                 (!input.trim() && !attachment) || isLoading 

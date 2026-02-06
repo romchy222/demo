@@ -11,6 +11,7 @@ import { Docs } from './components/Docs';
 import { Notifications } from './components/Notifications';
 import { VacanciesPanel } from './components/VacanciesPanel';
 import { Home } from './components/Home';
+import { AgentToolsPanel } from './components/AgentToolsPanel';
 import { db } from './services/dbService';
 import { useI18n } from './i18n/i18n';
 import { LanguageSelect } from './components/LanguageSelect';
@@ -604,22 +605,21 @@ const AgentView: React.FC<{ user: User; onLogout: () => void }> = ({ user, onLog
 
     return (
         <Layout user={user} currentId={agentId} onLogout={onLogout}>
-            {agent.id === 'career' ? (
-              <div className="h-[calc(100vh-5rem-4rem)] min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6 max-w-7xl mx-auto w-full overflow-hidden">
-                <div className="h-full min-h-0">
-                  <ChatWindow agent={agent} />
-                </div>
-                <div className="h-full min-h-0">
-                  <VacanciesPanel />
+            <div className="h-[calc(100vh-5rem-4rem)] min-h-0 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6 max-w-7xl mx-auto w-full overflow-hidden">
+              <div className="h-full min-h-0">
+                <ChatWindow agent={agent} />
+              </div>
+              <div className="h-full min-h-0 flex flex-col gap-6 overflow-hidden">
+                {agent.id === 'career' && (
+                  <div className="min-h-0 flex-1">
+                    <VacanciesPanel />
+                  </div>
+                )}
+                <div className="min-h-0 flex-1">
+                  <AgentToolsPanel agent={agent} userId={user.id} />
                 </div>
               </div>
-            ) : (
-              <div className="h-[calc(100vh-5rem-4rem)] min-h-0 flex flex-col gap-6 max-w-5xl mx-auto w-full overflow-hidden">
-                <div className="h-full min-h-0">
-                  <ChatWindow agent={agent} />
-                </div>
-              </div>
-            )}
+            </div>
         </Layout>
     );
 };

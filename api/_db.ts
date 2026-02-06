@@ -1,4 +1,4 @@
-import { AuditEvent, Doc, Message, MessageFeedback, Notification, User } from '../types';
+import { AgentId, AuditEvent, CaseMessage, Doc, Message, MessageFeedback, Notification, UiItem, UiItemKind, User, WorkflowCase } from '../types';
 
 let sqlInstance: any = null;
 
@@ -25,6 +25,9 @@ export async function getSql() {
 // Initialize database tables
 export async function initializeTables() {
   const sql = await getSql();
+
+  // Needed for gen_random_uuid() used across the API
+  await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
   
   await sql`
     CREATE TABLE IF NOT EXISTS tbl_users (
@@ -102,11 +105,86 @@ export async function initializeTables() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_ui_items (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      group_key TEXT,
+      title TEXT NOT NULL,
+      content TEXT,
+      meta JSONB,
+      sort INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_cases (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES tbl_users(id) ON DELETE CASCADE,
+      agent_id TEXT NOT NULL,
+      case_type TEXT NOT NULL,
+      title TEXT,
+      status TEXT NOT NULL DEFAULT 'OPEN',
+      payload JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_case_messages (
+      id TEXT PRIMARY KEY,
+      case_id TEXT NOT NULL REFERENCES tbl_cases(id) ON DELETE CASCADE,
+      author_user_id TEXT REFERENCES tbl_users(id) ON DELETE SET NULL,
+      author_role TEXT NOT NULL,
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
   // Create indexes
   await sql`CREATE INDEX IF NOT EXISTS idx_messages_user_agent ON tbl_messages(user_id, agent_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_notifications_user ON tbl_notifications(user_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_docs_user ON tbl_docs(user_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_audit_actor ON tbl_audit(actor_user_id)`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_message_unique ON tbl_feedback(message_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_ui_items_agent_kind ON tbl_ui_items(agent_id, kind)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_cases_user_agent ON tbl_cases(user_id, agent_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_case_messages_case ON tbl_case_messages(case_id)`;
+
+  // Seed minimal UI items (safe, idempotent)
+  const now = new Date().toISOString();
+  await sql`
+    INSERT INTO tbl_ui_items (id, agent_id, kind, group_key, title, content, meta, sort, created_at, updated_at)
+    VALUES
+      ('ui_abitur_cat_admission', 'abitur', 'category', null, 'Поступление', null, null, 10, ${now}, ${now}),
+      ('ui_abitur_cat_docs', 'abitur', 'category', null, 'Документы', null, null, 20, ${now}, ${now}),
+      ('ui_abitur_cat_deadlines', 'abitur', 'category', null, 'Сроки', null, null, 30, ${now}, ${now}),
+      ('ui_abitur_quick_admission_1', 'abitur', 'quick', 'Поступление', 'Как поступить?', 'Расскажи, как поступить в университет: шаги, требования и контакты.', null, 10, ${now}, ${now}),
+      ('ui_abitur_quick_docs_1', 'abitur', 'quick', 'Документы', 'Какие документы нужны?', 'Перечисли документы для поступления: оригиналы/копии и сроки подачи.', null, 10, ${now}, ${now}),
+      ('ui_abitur_quick_deadlines_1', 'abitur', 'quick', 'Сроки', 'Какие сроки приема?', 'Назови ключевые сроки: прием документов, экзамены, зачисление.', null, 10, ${now}, ${now}),
+      ('ui_abitur_ref_1', 'abitur', 'reference', null, 'Справка: список документов', 'Обычно требуется: удостоверение личности, аттестат/диплом, фото 3×4, медсправка (если требуется), заявление. Уточните в приемной комиссии.', null, 10, ${now}, ${now}),
+
+      ('ui_kadr_topic_1', 'kadr', 'topic', null, 'Справки студентам', null, null, 10, ${now}, ${now}),
+      ('ui_kadr_topic_2', 'kadr', 'topic', null, 'Кадровые документы', null, null, 20, ${now}, ${now}),
+      ('ui_kadr_proc_1', 'kadr', 'procedure', 'Справки студентам', 'Справка с места учебы', 'Подайте запрос, укажите ФИО, группу, цель справки. Срок подготовки зависит от регламента.', null, 10, ${now}, ${now}),
+      ('ui_kadr_quick_1', 'kadr', 'quick', null, 'Нужна справка с места учебы', 'Мне нужна справка с места учебы. Какие данные вам нужны и сколько ждать?', null, 10, ${now}, ${now}),
+
+      ('ui_nav_req_1', 'nav', 'request', null, 'Справка об обучении', null, null, 10, ${now}, ${now}),
+      ('ui_nav_req_2', 'nav', 'request', null, 'Перевод/академический отпуск', null, null, 20, ${now}, ${now}),
+      ('ui_nav_schedule_1', 'nav', 'schedule', null, 'Как посмотреть расписание', 'Откройте раздел «Расписание» в ЛК или уточните у куратора. Здесь можно хранить ссылки/инструкции.', null, 10, ${now}, ${now}),
+
+      ('ui_career_dir_1', 'career', 'direction', null, 'IT', null, null, 10, ${now}, ${now}),
+      ('ui_career_dir_2', 'career', 'direction', null, 'Юриспруденция', null, null, 20, ${now}, ${now}),
+      ('ui_career_tip_1', 'career', 'resume_tip', null, 'Совет по резюме', 'Добавьте 2–3 достижения с цифрами (результат, срок, вклад).', null, 10, ${now}, ${now}),
+
+      ('ui_room_type_1', 'room', 'request', null, 'Заселение', null, null, 10, ${now}, ${now}),
+      ('ui_room_type_2', 'room', 'request', null, 'Бытовой вопрос', null, null, 20, ${now}, ${now})
+    ON CONFLICT (id) DO NOTHING
+  `;
 }
 
 // User operations
@@ -260,7 +338,7 @@ export async function getNotificationsByUser(userId: string): Promise<Notificati
 export async function countUnreadNotifications(userId: string): Promise<number> {
   const sql = await getSql();
   const result = await sql`
-    SELECT COUNT(*) as count FROM tbl_notifications
+    SELECT COUNT(*)::int as count FROM tbl_notifications
     WHERE user_id = ${userId} AND is_read = false
   `;
   return (result as any)[0]?.count || 0;
@@ -404,5 +482,118 @@ export async function logAuditEvent(event: Omit<AuditEvent, 'id'> & { at?: strin
 export async function clearAuditLog(): Promise<void> {
   const sql = await getSql();
   await sql`DELETE FROM tbl_audit`;
+}
+
+// UI items (categories, quick actions, reference/procedures/schedules/etc.)
+export async function getUiItems(agentId: AgentId, kind: UiItemKind, groupKey?: string | null): Promise<UiItem[]> {
+  const sql = await getSql();
+
+  if (groupKey != null && groupKey !== '') {
+    const result = await sql`
+      SELECT
+        id,
+        agent_id as "agentId",
+        kind,
+        group_key as "groupKey",
+        title,
+        content,
+        meta,
+        sort,
+        created_at as "createdAt",
+        updated_at as "updatedAt"
+      FROM tbl_ui_items
+      WHERE agent_id = ${agentId} AND kind = ${kind} AND group_key = ${groupKey}
+      ORDER BY sort ASC, title ASC
+    `;
+    return result as UiItem[];
+  }
+
+  const result = await sql`
+    SELECT
+      id,
+      agent_id as "agentId",
+      kind,
+      group_key as "groupKey",
+      title,
+      content,
+      meta,
+      sort,
+      created_at as "createdAt",
+      updated_at as "updatedAt"
+    FROM tbl_ui_items
+    WHERE agent_id = ${agentId} AND kind = ${kind}
+    ORDER BY sort ASC, title ASC
+  `;
+  return result as UiItem[];
+}
+
+// Workflow cases (applications/tickets) + messages
+export async function getCasesByUserAndAgent(userId: string, agentId: AgentId): Promise<WorkflowCase[]> {
+  const sql = await getSql();
+  const result = await sql`
+    SELECT
+      id,
+      user_id as "userId",
+      agent_id as "agentId",
+      case_type as "caseType",
+      title,
+      status,
+      payload,
+      created_at as "createdAt",
+      updated_at as "updatedAt"
+    FROM tbl_cases
+    WHERE user_id = ${userId} AND agent_id = ${agentId}
+    ORDER BY created_at DESC
+    LIMIT 100
+  `;
+  return result as WorkflowCase[];
+}
+
+export async function createCase(c: WorkflowCase): Promise<WorkflowCase> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_cases (id, user_id, agent_id, case_type, title, status, payload, created_at, updated_at)
+    VALUES (${c.id}, ${c.userId}, ${c.agentId}, ${c.caseType}, ${c.title || null}, ${c.status}, ${c.payload ? JSON.stringify(c.payload) : null}, ${c.createdAt}, ${c.updatedAt})
+  `;
+  return c;
+}
+
+export async function updateCase(id: string, updates: Partial<Pick<WorkflowCase, 'status' | 'title' | 'payload'>>): Promise<void> {
+  const sql = await getSql();
+  const now = new Date().toISOString();
+  await sql`
+    UPDATE tbl_cases SET
+      status = COALESCE(${updates.status ?? null}, status),
+      title = COALESCE(${updates.title ?? null}, title),
+      payload = COALESCE(${updates.payload === undefined ? null : (updates.payload === null ? null : JSON.stringify(updates.payload))}, payload),
+      updated_at = ${now}
+    WHERE id = ${id}
+  `;
+}
+
+export async function getCaseMessages(caseId: string): Promise<CaseMessage[]> {
+  const sql = await getSql();
+  const result = await sql`
+    SELECT
+      id,
+      case_id as "caseId",
+      author_user_id as "authorUserId",
+      author_role as "authorRole",
+      message,
+      created_at as "createdAt"
+    FROM tbl_case_messages
+    WHERE case_id = ${caseId}
+    ORDER BY created_at ASC
+    LIMIT 500
+  `;
+  return result as CaseMessage[];
+}
+
+export async function addCaseMessage(m: CaseMessage): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_case_messages (id, case_id, author_user_id, author_role, message, created_at)
+    VALUES (${m.id}, ${m.caseId}, ${m.authorUserId || null}, ${m.authorRole}, ${m.message}, ${m.createdAt})
+  `;
 }
 
