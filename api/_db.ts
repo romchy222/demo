@@ -167,7 +167,7 @@ export async function initializeTables() {
       ('1', 'admin@bolashak.kz', 'Администратор системы', 'ADMIN', ${seedAdminHash}, ${now}),
       ('2', 'student@bolashak.kz', 'Иван Иванов', 'STUDENT', ${seedAdminHash}, ${now}),
       ('3', 'profi@bolashak.kz', 'Д-р Ахметов', 'FACULTY', ${seedAdminHash}, ${now})
-    ON CONFLICT (id) DO NOTHING
+    ON CONFLICT (email) DO NOTHING
   `;
 
   // Seed demo notifications (safe, idempotent)
