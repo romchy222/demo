@@ -67,13 +67,19 @@ const Sidebar: React.FC<{ user: User; activeAgentId?: string; onLogout: () => vo
       <div className="p-8">
         <Link to="/" className="flex items-center gap-4 group">
           <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-            <i className="fas fa-graduation-cap text-slate-900 text-xl"></i>
+            <img
+              src="/ai-sana/bolashak_logo_smooth.svg"
+              alt="Bolashak University"
+              className="w-11 h-11 object-contain filter brightness-0"
+            />
           </div>
+
           <div className="overflow-hidden">
             <h1 className="text-lg font-black tracking-tighter leading-none">BOLASHAK</h1>
-            <p className="text-[10px] text-amber-500 font-bold tracking-widest mt-1">AI ECOSYSTEM</p>
+            <p className="text-[10px] text-amber-500 font-bold tracking-widest mt-1">AI PLATFORM</p>
           </div>
         </Link>
+
       </div>
       
       <div className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">

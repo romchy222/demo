@@ -45,7 +45,7 @@ export const AGENTS: Agent[] = [
     bgColor: 'bg-amber-50',
     primaryFunc: 'Расписание, академические вопросы, справки об обучении.',
     primaryFuncKey: 'agent.nav.primaryFunc',
-    instruction: 'Вы — UniNav, проводник студента Университета Болашак.',
+    instruction: 'Вы — UniNav, проводник студента Кызылординского Университета Болашак.',
     minRole: 'STUDENT'
   },
   {

@@ -107,11 +107,15 @@ export const Home: React.FC = () => {
         <div className="flex items-center justify-between gap-4 mb-10">
           <div className="flex items-center gap-3 text-white/90">
             <div className="w-11 h-11 rounded-2xl bg-white/5 ring-1 ring-white/10 flex items-center justify-center">
-              <i className="fas fa-graduation-cap text-white"></i>
+              <img
+                src="/ai-sana/bolashak_logo_smooth.svg"
+                alt="Bolashak University"
+                className="w-12 h-12 object-contain filter brightness-0 invert"
+              />
             </div>
             <div className="leading-tight">
               <p className="text-sm font-black tracking-tight text-white">BOLASHAK</p>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">AI ECOSYSTEM</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/60">AI PLATFORM</p>
             </div>
           </div>
 
