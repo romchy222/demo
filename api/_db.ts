@@ -148,11 +148,14 @@ export async function initializeTables() {
 
   // Create indexes
   await sql`CREATE INDEX IF NOT EXISTS idx_messages_user_agent ON tbl_messages(user_id, agent_id)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_notifications_user ON tbl_notifications(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_messages_timestamp ON tbl_messages(timestamp DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON tbl_notifications(user_id, is_read)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON tbl_notifications(created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_docs_user ON tbl_docs(user_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_audit_at ON tbl_audit(at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_audit_actor ON tbl_audit(actor_user_id)`;
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_message_unique ON tbl_feedback(message_id)`;
-  await sql`CREATE INDEX IF NOT EXISTS idx_ui_items_agent_kind ON tbl_ui_items(agent_id, kind)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_ui_items_agent_kind_sort ON tbl_ui_items(agent_id, kind, sort ASC)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_cases_user_agent ON tbl_cases(user_id, agent_id)`;
   await sql`CREATE INDEX IF NOT EXISTS idx_case_messages_case ON tbl_case_messages(case_id)`;
 
