@@ -4,6 +4,7 @@ import { Doc, User } from '../types';
 import { makeId } from '../services/id';
 import { useI18n } from '../i18n/i18n';
 import { neonApi } from '../services/neonApi';
+import mammoth from 'mammoth';
 
 interface DocsProps {
   user: User;
@@ -19,6 +20,7 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastDocParamRef = useRef<string | null>(null);
 
@@ -102,17 +104,33 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
   };
 
   const handleUpload = async (file: File) => {
-    const text = await file.text();
-    const doc: Doc = {
-      id: makeId('d_'),
-      userId: user.id,
-      title: file.name,
-      content: text,
-      createdAt: new Date().toISOString()
-    };
-    await neonApi.docs.create(doc);
-    void neonApi.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
-    await refresh();
+    try {
+      setUploading(true);
+      let text = '';
+      if (file.name.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      } else {
+        text = await file.text();
+      }
+
+      const doc: Doc = {
+        id: makeId('d_'),
+        userId: user.id,
+        title: file.name,
+        content: text,
+        createdAt: new Date().toISOString()
+      };
+      await neonApi.docs.create(doc);
+      void neonApi.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
+      await refresh();
+    } catch (err) {
+      console.error('Upload failed:', err);
+      alert('Failed to parse document');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -128,15 +146,19 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-shadow shadow-lg shadow-indigo-600/20"
+            disabled={uploading}
+            className={`px-4 py-2 text-white rounded-xl text-xs font-bold transition-all shadow-lg ${
+              uploading ? 'bg-slate-400' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/20'
+            }`}
           >
-            <i className="fas fa-upload mr-2"></i> {t('docs.upload')}
+            <i className={`fas ${uploading ? 'fa-spinner fa-spin' : 'fa-upload'} mr-2`}></i> 
+            {uploading ? 'Parsing...' : t('docs.upload')}
           </button>
           <input
             ref={fileInputRef}
             type="file"
             className="hidden"
-            accept=".txt,.md,.markdown,.csv,.json"
+            accept=".txt,.md,.markdown,.csv,.json,.docx"
             onChange={e => {
               const f = e.target.files?.[0];
               if (f) void handleUpload(f);
