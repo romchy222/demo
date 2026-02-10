@@ -67,11 +67,14 @@ if (hasDist) {
   );
 }
 
-const port = (process.env.PORT ? Number(process.env.PORT) : NaN) || 5001;
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`API server listening on http://0.0.0.0:${port}`);
-  if (!process.env.NEON_DATABASE_URL && !process.env.DATABASE_URL) {
-    console.warn('WARN: NEON_DATABASE_URL/DATABASE_URL is not set; DB endpoints will fail until it is configured.');
-  }
+const PORT = Number(process.env.PORT);
+
+if (!PORT) {
+  throw new Error('PORT is not defined. This app must be run by a platform like Replit.');
+}
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
+
