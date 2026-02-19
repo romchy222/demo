@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useState, useEffect } from 'react';
 import { Notification, User } from '../types';
 import { db } from '../services/dbService';
 import { useT } from '../i18n/i18n';
@@ -15,22 +16,45 @@ function severityBadge(severity?: Notification['severity']) {
 
 export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
   const t = useT();
-  const [items, setItems] = useState<Notification[]>(() => db.notifications.findByUser(user.id));
+  const [items, setItems] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  const unreadCount = useMemo(() => items.filter(n => !n.isRead).length, [items]);
-
-  const refresh = () => setItems(db.notifications.findByUser(user.id));
-
-  const markRead = (id: string) => {
-    db.notifications.markRead(id);
-    db.audit.log({ actorUserId: user.id, type: 'notification_read', details: { id } });
-    refresh();
+  const refresh = async () => {
+    try {
+      const notifs = await db.notifications.findAll();
+      setItems(notifs);
+      const count = await db.notifications.countUnread();
+      setUnreadCount(count); // Correctly using countUnread for just count
+      // OR rely on filtering items if findAll returns unread? 
+      // findAll returns all. So filtering length is also fine.
+      setUnreadCount(notifs.filter(n => !n.isRead).length);
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const markAllRead = () => {
-    for (const n of items) {
-      if (!n.isRead) db.notifications.markRead(n.id);
+  useEffect(() => {
+    refresh();
+  }, [user.id]);
+
+  const markRead = async (id: string) => {
+    try {
+      await db.notifications.markRead(id);
+      db.audit.log({ actorUserId: user.id, type: 'notification_read', details: { id } });
+      refresh();
+    } catch (e) { console.error(e); }
+  };
+
+  const markAllRead = async () => {
+    // Optimistic UI or wait?
+    // Batch update via API? I didn't add batch.
+    // Loop through unread?
+    const unread = items.filter(n => !n.isRead);
+    for (const n of unread) {
+      await db.notifications.markRead(n.id); // Parallelize?
     }
+    await Promise.all(unread.map(n => db.notifications.markRead(n.id)));
+
     db.audit.log({ actorUserId: user.id, type: 'notification_read_all' });
     refresh();
   };
@@ -49,9 +73,8 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
           <button
             onClick={markAllRead}
             disabled={unreadCount === 0}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              unreadCount === 0 ? 'bg-slate-200 text-slate-400' : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${unreadCount === 0 ? 'bg-slate-200 text-slate-400' : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
+              }`}
           >
             <i className="fas fa-check-double mr-2"></i> {t('notifications.markAllRead')}
           </button>
@@ -120,4 +143,3 @@ export const Notifications: React.FC<NotificationsProps> = ({ user }) => {
     </div>
   );
 };
-

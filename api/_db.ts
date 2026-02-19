@@ -10,12 +10,12 @@ export async function getSql() {
   }
 
   if (sqlInstance) return sqlInstance;
-  
+
   const url = typeof process !== 'undefined' ? (process.env?.NEON_DATABASE_URL || process.env?.DATABASE_URL) : null;
   if (!url) {
     throw new Error('NEON_DATABASE_URL or DATABASE_URL environment variable is not set on the server');
   }
-  
+
   // Use a simple dynamic import that works with both ESM and CJS
   const { neon } = await import('@neondatabase/serverless');
   sqlInstance = neon(url);
@@ -28,7 +28,7 @@ export async function initializeTables() {
 
   // Needed for gen_random_uuid() used across the API
   await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
-  
+
   await sql`
     CREATE TABLE IF NOT EXISTS tbl_users (
       id TEXT PRIMARY KEY,
@@ -38,8 +38,67 @@ export async function initializeTables() {
       avatar TEXT,
       password_hash TEXT,
       department TEXT,
+      metadata JSONB,
       joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  // Safely add metadata column if it doesn't exist (migration for existing tables)
+  try {
+    await sql`ALTER TABLE tbl_users ADD COLUMN IF NOT EXISTS metadata JSONB`;
+  } catch (e) {
+    // Ignore error if column exists or not supported
+  }
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_events (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL, -- 'SCHEDULE', 'DEADLINE'
+      start_time TIMESTAMPTZ NOT NULL,
+      end_time TIMESTAMPTZ,
+      location TEXT,
+      target_group TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_knowledge (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT, -- NULL for global
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      type TEXT NOT NULL, -- 'TEXT', 'FILE', 'URL'
+      metadata JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_agents (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT,
+      color TEXT,
+      bg_color TEXT,
+      primary_func TEXT,
+      instruction TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS tbl_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL,
+      description TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
 
@@ -407,7 +466,7 @@ export async function createDoc(doc: Doc): Promise<void> {
 export async function updateDoc(id: string, updates: Partial<Doc>): Promise<void> {
   const sql = await getSql();
   const now = new Date().toISOString();
-  
+
   await sql`
     UPDATE tbl_docs SET 
       title = COALESCE(${updates.title}, title),
@@ -596,4 +655,113 @@ export async function addCaseMessage(m: CaseMessage): Promise<void> {
     VALUES (${m.id}, ${m.caseId}, ${m.authorUserId || null}, ${m.authorRole}, ${m.message}, ${m.createdAt})
   `;
 }
+
+// Events operations
+export async function getEvents(): Promise<any[]> {
+  const sql = await getSql();
+  return await sql`SELECT * FROM tbl_events ORDER BY start_time ASC`;
+}
+
+export async function createEvent(event: any): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_events (id, title, description, type, start_time, end_time, location, target_group, created_at)
+    VALUES (${event.id}, ${event.title}, ${event.description}, ${event.type}, ${event.startTime}, ${event.endTime}, ${event.location}, ${event.targetGroup}, ${event.createdAt})
+  `;
+}
+
+// Knowledge Base operations
+export async function getKnowledge(agentId?: string): Promise<any[]> {
+  const sql = await getSql();
+  if (agentId) {
+    return await sql`SELECT * FROM tbl_knowledge WHERE agent_id = ${agentId} OR agent_id IS NULL ORDER BY created_at DESC`;
+  }
+  return await sql`SELECT * FROM tbl_knowledge ORDER BY created_at DESC`;
+}
+
+export async function createKnowledge(k: any): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_knowledge (id, agent_id, title, content, type, metadata, created_at)
+    VALUES (${k.id}, ${k.agentId}, ${k.title}, ${k.content}, ${k.type}, ${k.metadata}, ${k.createdAt})
+  `;
+}
+
+// Agents operations
+export async function getAgents(): Promise<any[]> {
+  const sql = await getSql();
+  return await sql`SELECT * FROM tbl_agents ORDER BY name ASC`;
+}
+
+export async function upsertAgent(agent: any): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_agents (id, name, full_name, description, icon, color, bg_color, primary_func, instruction, created_at, updated_at)
+    VALUES (${agent.id}, ${agent.name}, ${agent.fullName}, ${agent.description}, ${agent.icon}, ${agent.color}, ${agent.bgColor}, ${agent.primaryFunc}, ${agent.instruction}, ${agent.createdAt}, ${agent.updatedAt})
+    ON CONFLICT (id) DO UPDATE SET
+      name = EXCLUDED.name,
+      full_name = EXCLUDED.full_name,
+      description = EXCLUDED.description,
+      icon = EXCLUDED.icon,
+      color = EXCLUDED.color,
+      bg_color = EXCLUDED.bg_color,
+      primary_func = EXCLUDED.primary_func,
+      instruction = EXCLUDED.instruction,
+      updated_at = EXCLUDED.updated_at
+  `;
+}
+
+// Settings operations
+export async function getSettings(): Promise<any[]> {
+  const sql = await getSql();
+  return await sql`SELECT * FROM tbl_settings`;
+}
+
+export async function upsertSetting(key: string, value: any, description?: string): Promise<void> {
+  const sql = await getSql();
+  await sql`
+    INSERT INTO tbl_settings (key, value, description, updated_at)
+    VALUES (${key}, ${value}, ${description}, NOW())
+    ON CONFLICT (key) DO UPDATE SET
+      value = EXCLUDED.value,
+      description = COALESCE(EXCLUDED.description, tbl_settings.description),
+      updated_at = NOW()
+  `;
+}
+
+// Analytics
+export async function getAnalytics(): Promise<any> {
+  const sql = await getSql();
+
+  // Simple counts
+  const usersCount = await sql`SELECT COUNT(*)::int as count FROM tbl_users`;
+  const messagesCount = await sql`SELECT COUNT(*)::int as count FROM tbl_messages`;
+  const agentsCount = await sql`SELECT COUNT(*)::int as count FROM tbl_agents`;
+
+  // Activity by Agent
+  const messagesByAgent = await sql`
+        SELECT agent_id, COUNT(*)::int as count 
+        FROM tbl_messages 
+        GROUP BY agent_id 
+        ORDER BY count DESC
+    `;
+
+  // Activity over time (last 7 days messages)
+  const messagesLast7Days = await sql`
+        SELECT DATE(timestamp) as date, COUNT(*)::int as count
+        FROM tbl_messages
+        WHERE timestamp > NOW() - INTERVAL '7 days'
+        GROUP BY DATE(timestamp)
+        ORDER BY date ASC
+    `;
+
+  return {
+    users: usersCount[0].count,
+    messages: messagesCount[0].count,
+    agents: agentsCount[0].count,
+    messagesByAgent,
+    messagesLast7Days
+  };
+}
+
 

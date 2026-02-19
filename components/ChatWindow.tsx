@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Agent, Doc, Message, User } from '../types';
+import { Agent, Doc, Message, User, MessageFeedback } from '../types';
 import { GEMINI_MODEL_NAME, getAgentResponse, hasGeminiApiKey } from '../services/geminiService';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
@@ -17,6 +17,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const agentName = t(agent.nameKey ?? '', undefined, agent.name);
   const agentFullName = t(agent.fullNameKey ?? '', undefined, agent.fullName);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, MessageFeedback>>({});
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -25,18 +26,40 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
   const [docs, setDocs] = useState<Doc[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sendRef = useRef<(override?: { text?: string; attachment?: string | null }) => void>(() => {});
-  
+  const sendRef = useRef<(override?: { text?: string; attachment?: string | null }) => void>(() => { });
+
   const user: User = JSON.parse(localStorage.getItem('bolashak_auth_session') || '{}');
   const hasApiKey = hasGeminiApiKey();
 
   useEffect(() => {
-    const history = db.messages.findByUserAndAgent(user.id, agent.id);
-    setMessages(history);
+    const loadHistory = async () => {
+      try {
+        const msgs = await db.messages.findAll(agent.id); // API now requires agentId param or filters by it
+        // Actually dbService.messages.findAll returns all for agent?
+        // My new dbService.messages.findAll takes (agentId).
+        // Wait, check dbService.ts
+        // findAll: (agentId: string) => fetchJson(`/messages?agentId=${agentId}`)
+        // Yes.
+        setMessages(msgs);
+
+        // Load feedback
+        const allFeedback = await db.feedback.findAll();
+        const map: Record<string, MessageFeedback> = {};
+        for (const f of allFeedback) {
+          if (f.agentId === agent.id) {
+            map[f.messageId] = f;
+          }
+        }
+        setFeedbackMap(map);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadHistory();
   }, [agent.id, user.id]);
 
   useEffect(() => {
-    setDocs(db.docs.findByUser(user.id));
+    db.docs.findAll().then(setDocs).catch(console.error);
   }, [user.id]);
 
   useEffect(() => {
@@ -92,9 +115,9 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     db.audit.log({ actorUserId: user.id, type: 'chat_export', details: { agentId: agent.id, format: 'md' } });
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
     if (!confirm(t('chat.confirm.clear', { name: agentName }))) return;
-    db.messages.clear(user.id, agent.id);
+    await db.messages.clear(user.id, agent.id); // Updated signature
     setMessages([]);
     db.audit.log({ actorUserId: user.id, type: 'chat_clear', details: { agentId: agent.id } });
   };
@@ -133,17 +156,19 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     return out.trim() || null;
   };
 
-  const setRating = (messageId: string, rating: 1 | -1) => {
-    db.feedback.upsert({
+  const setRating = async (messageId: string, rating: 1 | -1) => {
+    const fb: MessageFeedback = {
       id: makeId('f_'),
       messageId,
       userId: user.id,
       agentId: agent.id,
       rating,
       createdAt: new Date().toISOString()
-    });
+    };
+    await db.feedback.upsert(fb);
     db.audit.log({ actorUserId: user.id, type: 'feedback', details: { agentId: agent.id, messageId, rating } });
-    setMessages(prev => [...prev]);
+
+    setFeedbackMap(prev => ({ ...prev, [messageId]: fb }));
   };
 
   // Голосовой ввод (Web Speech API)
@@ -152,7 +177,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
       alert(t('chat.alert.voiceUnsupported'));
       return;
     }
-    
+
     if (isListening) {
       setIsListening(false);
       return;
@@ -210,7 +235,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     };
 
     setMessages(prev => [...prev, userMsg]);
-    db.messages.save(userMsg);
+    db.messages.save(userMsg).catch(console.error); // optimistic update
     if (!override?.text) setInput('');
     if (!override?.attachment) setAttachment(null);
     setIsLoading(true);
@@ -230,22 +255,27 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
     }
 
     const startedAt = performance.now();
-    const aiResponse = await getAgentResponse(agent.instruction, historyForAi, promptForAi, userMsg.attachment);
-    const latencyMs = Math.round(performance.now() - startedAt);
+    try {
+      const aiResponse = await getAgentResponse(agent.instruction, historyForAi, promptForAi, userMsg.attachment);
+      const latencyMs = Math.round(performance.now() - startedAt);
 
-    const botMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      userId: user.id,
-      agentId: agent.id,
-      role: 'model',
-      content: aiResponse,
-      latencyMs,
-      timestamp: new Date().toISOString()
-    };
+      const botMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        userId: user.id,
+        agentId: agent.id,
+        role: 'model',
+        content: aiResponse,
+        latencyMs,
+        timestamp: new Date().toISOString()
+      };
 
-    setMessages(prev => [...prev, botMsg]);
-    db.messages.save(botMsg);
-    db.audit.log({ actorUserId: user.id, type: 'ai_response', details: { agentId: agent.id, latencyMs } });
+      setMessages(prev => [...prev, botMsg]);
+      db.messages.save(botMsg).catch(console.error);
+      db.audit.log({ actorUserId: user.id, type: 'ai_response', details: { agentId: agent.id, latencyMs } });
+    } catch (e) {
+      console.error(e);
+      // handle error
+    }
     setIsLoading(false);
   };
 
@@ -274,156 +304,152 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-            <button
-              onClick={() => setUseDocs(v => !v)}
-              disabled={docs.length === 0}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm transition-all flex items-center gap-2 ${
-                useDocs && docs.length > 0
-                  ? 'bg-emerald-600 text-white border-emerald-700'
-                  : 'bg-white/50 hover:bg-white text-slate-700 border border-white'
+          <button
+            onClick={() => setUseDocs(v => !v)}
+            disabled={docs.length === 0}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border shadow-sm transition-all flex items-center gap-2 ${useDocs && docs.length > 0
+                ? 'bg-emerald-600 text-white border-emerald-700'
+                : 'bg-white/50 hover:bg-white text-slate-700 border border-white'
               } ${docs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              title={docs.length > 0 ? t('chat.useDocsTitle', { count: docs.length }) : t('chat.useDocsNoneTitle')}
-            >
-              <i className="fas fa-file-lines"></i> {t('chat.docsButton')}
-            </button>
+            title={docs.length > 0 ? t('chat.useDocsTitle', { count: docs.length }) : t('chat.useDocsNoneTitle')}
+          >
+            <i className="fas fa-file-lines"></i> {t('chat.docsButton')}
+          </button>
 
-            <button
-              onClick={exportChatMarkdown}
-              className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-slate-700 border border-white shadow-sm transition-all flex items-center gap-2"
-              title={t('chat.export.title')}
-            >
-              <i className="fas fa-download"></i> {t('chat.export.button')}
-            </button>
+          <button
+            onClick={exportChatMarkdown}
+            className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-slate-700 border border-white shadow-sm transition-all flex items-center gap-2"
+            title={t('chat.export.title')}
+          >
+            <i className="fas fa-download"></i> {t('chat.export.button')}
+          </button>
 
-            <button
-              onClick={clearChat}
-              className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-rose-600 border border-white shadow-sm transition-all flex items-center gap-2"
-              title={t('chat.clearTitle')}
-            >
-              <i className="fas fa-trash-alt"></i>
-            </button>
+          <button
+            onClick={clearChat}
+            className="px-3 py-1.5 bg-white/50 hover:bg-white rounded-xl text-xs font-bold text-rose-600 border border-white shadow-sm transition-all flex items-center gap-2"
+            title={t('chat.clearTitle')}
+          >
+            <i className="fas fa-trash-alt"></i>
+          </button>
         </div>
       </div>
 
       {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-6 space-y-8 bg-slate-50/50">
         {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
-                <i className={`fas ${agent.icon} text-6xl mb-4`}></i>
-                <p className="text-sm font-medium">{t('chat.startDialog', { name: agentName })}</p>
-            </div>
+          <div className="flex flex-col items-center justify-center h-full text-slate-400 opacity-50">
+            <i className={`fas ${agent.icon} text-6xl mb-4`}></i>
+            <p className="text-sm font-medium">{t('chat.startDialog', { name: agentName })}</p>
+          </div>
         )}
         {messages.map((m) => (
           <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'} group`}>
             <div className="flex flex-col gap-1 max-w-[85%]">
-                <div className={`rounded-2xl px-6 py-4 shadow-sm relative ${
-                m.role === 'user' 
-                    ? 'bg-slate-900 text-white rounded-tr-sm' 
-                    : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm'
+              <div className={`rounded-2xl px-6 py-4 shadow-sm relative ${m.role === 'user'
+                  ? 'bg-slate-900 text-white rounded-tr-sm'
+                  : 'bg-white text-slate-800 border border-slate-200 rounded-tl-sm'
                 }`}>
                 {m.attachment && (
-                    <div className="mb-3 rounded-xl overflow-hidden border border-white/20">
-                        <img src={m.attachment} alt="attachment" className="max-h-48 w-auto object-cover" />
-                    </div>
+                  <div className="mb-3 rounded-xl overflow-hidden border border-white/20">
+                    <img src={m.attachment} alt="attachment" className="max-h-48 w-auto object-cover" />
+                  </div>
                 )}
                 <div className="prose prose-slate prose-sm max-w-none dark:prose-invert">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                 </div>
                 {m.role === 'model' && (
-                    <div className="absolute -bottom-9 left-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                        <button 
-                            onClick={() => speakText(m.content)}
-                            className="text-slate-400 hover:text-amber-500 p-2 transition-colors rounded-lg hover:bg-slate-50"
-                            title={t('chat.speak')}
-                        >
-                            <i className="fas fa-volume-up"></i>
-                        </button>
-                        <button
-                            onClick={() => navigator.clipboard.writeText(m.content || '')}
-                            className="text-slate-400 hover:text-indigo-600 p-2 transition-colors rounded-lg hover:bg-slate-50"
-                            title={t('chat.copyAnswer')}
-                        >
-                            <i className="fas fa-copy"></i>
-                        </button>
-                        {(() => {
-                            const fb = db.feedback.findByMessage(m.id);
-                            const upActive = fb?.rating === 1;
-                            const downActive = fb?.rating === -1;
-                            return (
-                                <>
-                                    <button
-                                        onClick={() => setRating(m.id, 1)}
-                                        className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${
-                                            upActive ? 'text-emerald-600' : 'text-slate-400 hover:text-emerald-600'
-                                        }`}
-                                        title={t('chat.helpful')}
-                                    >
-                                        <i className="fas fa-thumbs-up"></i>
-                                    </button>
-                                    <button
-                                        onClick={() => setRating(m.id, -1)}
-                                        className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${
-                                            downActive ? 'text-rose-600' : 'text-slate-400 hover:text-rose-600'
-                                        }`}
-                                        title={t('chat.notHelpful')}
-                                    >
-                                        <i className="fas fa-thumbs-down"></i>
-                                    </button>
-                                </>
-                            );
-                        })()}
-                    </div>
+                  <div className="absolute -bottom-9 left-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                    <button
+                      onClick={() => speakText(m.content)}
+                      className="text-slate-400 hover:text-amber-500 p-2 transition-colors rounded-lg hover:bg-slate-50"
+                      title={t('chat.speak')}
+                    >
+                      <i className="fas fa-volume-up"></i>
+                    </button>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(m.content || '')}
+                      className="text-slate-400 hover:text-indigo-600 p-2 transition-colors rounded-lg hover:bg-slate-50"
+                      title={t('chat.copyAnswer')}
+                    >
+                      <i className="fas fa-copy"></i>
+                    </button>
+                    {(() => {
+                      const fb = feedbackMap[m.id];
+                      const upActive = fb?.rating === 1;
+                      const downActive = fb?.rating === -1;
+                      return (
+                        <>
+                          <button
+                            onClick={() => setRating(m.id, 1)}
+                            className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${upActive ? 'text-emerald-600' : 'text-slate-400 hover:text-emerald-600'
+                              }`}
+                            title={t('chat.helpful')}
+                          >
+                            <i className="fas fa-thumbs-up"></i>
+                          </button>
+                          <button
+                            onClick={() => setRating(m.id, -1)}
+                            className={`p-2 transition-colors rounded-lg hover:bg-slate-50 ${downActive ? 'text-rose-600' : 'text-slate-400 hover:text-rose-600'
+                              }`}
+                            title={t('chat.notHelpful')}
+                          >
+                            <i className="fas fa-thumbs-down"></i>
+                          </button>
+                        </>
+                      );
+                    })()}
+                  </div>
                 )}
-                </div>
-                <span className={`text-[10px] font-bold text-slate-300 px-1 ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
-                    {new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    {m.role === 'model' && m.latencyMs != null && <span className="ml-2 text-slate-300/70">• {Math.round(m.latencyMs / 10) / 100}s</span>}
-                </span>
+              </div>
+              <span className={`text-[10px] font-bold text-slate-300 px-1 ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
+                {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {m.role === 'model' && m.latencyMs != null && <span className="ml-2 text-slate-300/70">• {Math.round(m.latencyMs / 10) / 100}s</span>}
+              </span>
             </div>
           </div>
         ))}
         {isLoading && (
-            <div className="flex justify-start">
-                <div className="bg-white px-6 py-4 rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm flex items-center gap-3">
-                    <div className="flex gap-1">
-                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-100"></div>
-                        <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-200"></div>
-                    </div>
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('chat.processing')}</span>
-                </div>
+          <div className="flex justify-start">
+            <div className="bg-white px-6 py-4 rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm flex items-center gap-3">
+              <div className="flex gap-1">
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-100"></div>
+                <div className="w-2 h-2 bg-amber-500 rounded-full animate-bounce delay-200"></div>
+              </div>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t('chat.processing')}</span>
             </div>
+          </div>
         )}
       </div>
 
       {/* Input Area */}
       <div className="p-4 bg-white border-t border-slate-100">
         {attachment && (
-            <div className="mb-2 flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg w-fit">
-                <i className="fas fa-image text-slate-500"></i>
-                <span className="text-xs text-slate-600 font-bold">{t('chat.attachmentAdded')}</span>
-                <button onClick={() => setAttachment(null)} className="text-rose-500 hover:text-rose-700 ml-2">
-                    <i className="fas fa-times"></i>
-                </button>
-            </div>
+          <div className="mb-2 flex items-center gap-2 bg-slate-100 px-3 py-2 rounded-lg w-fit">
+            <i className="fas fa-image text-slate-500"></i>
+            <span className="text-xs text-slate-600 font-bold">{t('chat.attachmentAdded')}</span>
+            <button onClick={() => setAttachment(null)} className="text-rose-500 hover:text-rose-700 ml-2">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
         )}
         <div className="flex gap-3 bg-slate-50 rounded-2xl p-2 border border-slate-200 focus-within:ring-2 ring-amber-500/20 transition-all">
-          <button 
-             onClick={() => fileInputRef.current?.click()}
-             className="w-10 h-10 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center"
-             title={t('chat.attachTitle')}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-10 h-10 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition-all flex items-center justify-center"
+            title={t('chat.attachTitle')}
           >
             <i className="fas fa-paperclip"></i>
           </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
             accept="image/*"
             onChange={handleFileChange}
           />
-          
-          <textarea 
+
+          <textarea
             rows={1}
             placeholder={isListening ? t('chat.listening') : t('chat.writeMessage')}
             className="flex-1 bg-transparent border-none px-2 py-2.5 outline-none text-sm font-medium resize-none"
@@ -432,32 +458,30 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ agent }) => {
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}
           />
 
-          <button 
-             onClick={toggleListening}
-             className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${
-                 isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'
-             }`}
-             title={t('chat.voiceInput')}
+          <button
+            onClick={toggleListening}
+            className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center ${isListening ? 'bg-rose-500 text-white animate-pulse' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-200'
+              }`}
+            title={t('chat.voiceInput')}
           >
             <i className={`fas ${isListening ? 'fa-microphone-slash' : 'fa-microphone'}`}></i>
           </button>
 
-          <button 
+          <button
             onClick={() => handleSend()}
             disabled={(!input.trim() && !attachment) || isLoading}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-all ${
-                (!input.trim() && !attachment) || isLoading 
-                ? 'bg-slate-200 text-slate-400' 
+            className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-all ${(!input.trim() && !attachment) || isLoading
+                ? 'bg-slate-200 text-slate-400'
                 : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
-            }`}
+              }`}
           >
             <i className="fas fa-arrow-up"></i>
           </button>
         </div>
         <div className="text-center mt-2">
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                {hasApiKey ? `AI: ${GEMINI_MODEL_NAME}` : 'AI: OFFLINE (NO KEY)'}
-            </p>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+            {hasApiKey ? `AI: ${GEMINI_MODEL_NAME}` : 'AI: OFFLINE (NO KEY)'}
+          </p>
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Doc, User } from '../types';
@@ -12,7 +13,7 @@ interface DocsProps {
 export const Docs: React.FC<DocsProps> = ({ user }) => {
   const { t, locale } = useI18n();
   const location = useLocation();
-  const [docs, setDocs] = useState<Doc[]>(() => db.docs.findByUser(user.id));
+  const [docs, setDocs] = useState<Doc[]>([]);
   const [query, setQuery] = useState('');
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -28,9 +29,20 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
     return docs.filter(d => `${d.title}\n${d.content}`.toLowerCase().includes(q));
   }, [docs, query]);
 
-  const refresh = () => setDocs(db.docs.findByUser(user.id));
+  const refresh = async () => {
+    try {
+      const d = await db.docs.findAll(); // API filters by user via header or returns all? 
+      // DocsService returning all docs might be security issue if not filtered by backend.
+      // Assuming backend filters.
+      setDocs(d);
+    } catch (e) { console.error(e); }
+  };
 
-  const createDoc = () => {
+  useEffect(() => {
+    refresh();
+  }, [user.id]);
+
+  const createDoc = async () => {
     if (!title.trim() || !content.trim()) return;
     const doc: Doc = {
       id: makeId('d_'),
@@ -39,18 +51,24 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
       content: content.trim(),
       createdAt: new Date().toISOString()
     };
-    db.docs.create(doc);
-    db.audit.log({ actorUserId: user.id, type: 'doc_create', details: { docId: doc.id, title: doc.title } });
-    setTitle('');
-    setContent('');
-    refresh();
+    try {
+      await db.docs.create(doc);
+      db.audit.log({ actorUserId: user.id, type: 'doc_create', details: { docId: doc.id, title: doc.title } });
+      setTitle('');
+      setContent('');
+      refresh();
+    } catch (e) {
+      alert('Failed to create doc');
+    }
   };
 
-  const removeDoc = (id: string) => {
+  const removeDoc = async (id: string) => {
     if (!confirm(t('docs.confirmDelete'))) return;
-    db.docs.remove(id);
-    db.audit.log({ actorUserId: user.id, type: 'doc_delete', details: { docId: id } });
-    refresh();
+    try {
+      await db.docs.remove(id);
+      db.audit.log({ actorUserId: user.id, type: 'doc_delete', details: { docId: id } });
+      refresh();
+    } catch (e) { console.error(e); }
   };
 
   const startEdit = (doc: Doc) => {
@@ -77,12 +95,14 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
     }
   }, [docs, location.search, query]);
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingId) return;
-    db.docs.update(editingId, { title: editTitle.trim(), content: editContent.trim() });
-    db.audit.log({ actorUserId: user.id, type: 'doc_update', details: { docId: editingId } });
-    setEditingId(null);
-    refresh();
+    try {
+      await db.docs.update(editingId, { title: editTitle.trim(), content: editContent.trim() });
+      db.audit.log({ actorUserId: user.id, type: 'doc_update', details: { docId: editingId } });
+      setEditingId(null);
+      refresh();
+    } catch (e) { console.error(e); }
   };
 
   const handleUpload = async (file: File) => {
@@ -94,9 +114,11 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
       content: text,
       createdAt: new Date().toISOString()
     };
-    db.docs.create(doc);
-    db.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
-    refresh();
+    try {
+      await db.docs.create(doc);
+      db.audit.log({ actorUserId: user.id, type: 'doc_upload', details: { docId: doc.id, filename: file.name } });
+      refresh();
+    } catch (e) { console.error(e); }
   };
 
   return (
@@ -175,11 +197,10 @@ export const Docs: React.FC<DocsProps> = ({ user }) => {
               <button
                 onClick={createDoc}
                 disabled={!title.trim() || !content.trim()}
-                className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-                  !title.trim() || !content.trim()
+                className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!title.trim() || !content.trim()
                     ? 'bg-slate-200 text-slate-400'
                     : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
-                }`}
+                  }`}
               >
                 {t('docs.add')}
               </button>

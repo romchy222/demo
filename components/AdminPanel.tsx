@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { AGENTS } from '../constants';
-import { Role, User } from '../types';
+import { Role, User, Message, MessageFeedback, Doc, Notification, AuditLog } from '../types';
 import { db } from '../services/dbService';
 import { makeId } from '../services/id';
 import { hashPassword } from '../services/password';
@@ -30,6 +31,13 @@ const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('stats');
   const [refreshTick, setRefreshTick] = useState(0);
 
+  const [users, setUsers] = useState<User[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [feedback, setFeedback] = useState<MessageFeedback[]>([]);
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+
   const [userQuery, setUserQuery] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
@@ -43,20 +51,39 @@ const AdminPanel: React.FC = () => {
 
   const importFileRef = useRef<HTMLInputElement>(null);
 
-  const analytics = useMemo(() => {
-    const users = db.users.findAll();
-    const messages = db.messages.findAll();
-    const feedback = db.feedback.findAll();
-    const docs = db.docs.findAll();
-    const notifications = db.notifications.findAll();
+  const fetchData = async () => {
+    try {
+      const [u, m, f, d, n, a] = await Promise.all([
+        db.users.findAll(),
+        db.messages.listAll(), // We need a listAll method for admin
+        db.feedback.findAll(),
+        db.docs.findAll(),
+        db.notifications.findAll(),
+        db.audit.list()
+      ]);
+      setUsers(u);
+      setMessages(m);
+      setFeedback(f);
+      setDocs(d);
+      setNotifications(n);
+      setAuditLogs(a);
+    } catch (e) {
+      console.error('Failed to fetch admin data', e);
+    }
+  };
 
+  useEffect(() => {
+    fetchData();
+  }, [refreshTick]);
+
+  const analytics = useMemo(() => {
     const userMessages = messages.filter(m => m.role === 'user');
     const modelMessages = messages.filter(m => m.role === 'model');
 
     const avgLatencyMs = modelMessages.length
       ? Math.round(
-          modelMessages.reduce((sum, m) => sum + (m.latencyMs ?? 0), 0) / clamp(modelMessages.length, 1, Number.MAX_SAFE_INTEGER)
-        )
+        modelMessages.reduce((sum, m) => sum + (m.latencyMs ?? 0), 0) / clamp(modelMessages.length, 1, Number.MAX_SAFE_INTEGER)
+      )
       : 0;
 
     const up = feedback.filter(f => f.rating === 1).length;
@@ -102,73 +129,101 @@ const AdminPanel: React.FC = () => {
       perAgent,
       timeline
     };
-  }, [refreshTick, t]);
+  }, [messages, feedback, users, docs, notifications, t]);
 
-  const users = useMemo(() => {
-    const all = db.users.findAll();
+  const filteredUsers = useMemo(() => {
     const q = userQuery.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(u => `${u.name} ${u.email} ${u.role} ${u.department ?? ''}`.toLowerCase().includes(q));
-  }, [refreshTick, userQuery]);
+    if (!q) return users;
+    return users.filter(u => `${u.name} ${u.email} ${u.role} ${u.department ?? ''}`.toLowerCase().includes(q));
+  }, [users, userQuery]);
 
-  const audit = useMemo(() => db.audit.list().slice(0, 80), [refreshTick]);
+  const displayAudit = useMemo(() => auditLogs.slice(0, 80), [auditLogs]);
 
   const makeRefresh = () => setRefreshTick(x => x + 1);
 
-  const updateUser = (id: string, updates: Partial<User>) => {
-    db.users.update(id, updates);
-    db.audit.log({ type: 'admin_user_update', details: { id, updates } });
-    makeRefresh();
+  const updateUser = async (id: string, updates: Partial<User>) => {
+    try {
+      await db.users.update(id, updates);
+      db.audit.log({ type: 'admin_user_update', details: { id, updates } });
+      makeRefresh();
+    } catch (e) {
+      alert('Update failed');
+    }
   };
 
-  const createUser = () => {
+  const createUser = async () => {
     if (!newUserEmail.trim() || !newUserName.trim()) return;
     if (!newUserPassword || newUserPassword.length < 6) return alert(t('admin.users.err.passwordMin'));
-    const existing = db.users.findByEmail(newUserEmail.trim());
-    if (existing) return alert(t('admin.users.err.emailExists'));
 
-    const user: User = {
-      id: makeId('u_'),
-      email: newUserEmail.trim(),
-      name: newUserName.trim(),
-      role: newUserRole,
-      department: newUserDept.trim() || undefined,
-      passwordHash: hashPassword(newUserPassword),
-      joinedAt: new Date().toISOString()
-    };
-    db.users.create(user);
-    db.audit.log({ type: 'admin_user_create', details: { id: user.id, email: user.email, role: user.role } });
-    setNewUserEmail('');
-    setNewUserName('');
-    setNewUserPassword('password');
-    setNewUserDept('');
-    setNewUserRole('STUDENT');
-    makeRefresh();
+    // Check existing
+    try {
+      const existing = await db.users.findByEmail(newUserEmail.trim());
+      if (existing) return alert(t('admin.users.err.emailExists'));
+
+      const user: User = {
+        id: makeId('u_'),
+        email: newUserEmail.trim(),
+        name: newUserName.trim(),
+        role: newUserRole,
+        department: newUserDept.trim() || undefined,
+        passwordHash: hashPassword(newUserPassword),
+        joinedAt: new Date().toISOString()
+      };
+      await db.users.create(user);
+      db.audit.log({ type: 'admin_user_create', details: { id: user.id, email: user.email, role: user.role } });
+      setNewUserEmail('');
+      setNewUserName('');
+      setNewUserPassword('password');
+      setNewUserDept('');
+      setNewUserRole('STUDENT');
+      makeRefresh();
+    } catch (e) {
+      alert('Create failed');
+    }
   };
 
-  const sendBroadcast = () => {
+  const sendBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) return;
-    db.notifications.broadcast(broadcastTitle.trim(), broadcastMessage.trim(), { severity: broadcastSeverity, createdBy: 'ADMIN' });
-    db.audit.log({ type: 'admin_broadcast', details: { severity: broadcastSeverity } });
-    setBroadcastMessage('');
-    makeRefresh();
-    alert(t('admin.broadcast.sent'));
+    try {
+      await db.notifications.broadcast(broadcastTitle.trim(), broadcastMessage.trim(), { severity: broadcastSeverity, createdBy: 'ADMIN' });
+      db.audit.log({ type: 'admin_broadcast', details: { severity: broadcastSeverity } });
+      setBroadcastMessage('');
+      makeRefresh();
+      alert(t('admin.broadcast.sent'));
+    } catch (e) {
+      alert('Broadcast failed');
+    }
   };
 
-  const exportBackup = () => {
-    const bundle = db.exportAll();
-    download(`bolashak_ai_backup_${bundle.exportedAt.replace(/[:.]/g, '-')}.json`, JSON.stringify(bundle, null, 2));
-    db.audit.log({ type: 'admin_backup_export' });
-    makeRefresh();
+  const exportBackup = async () => {
+    try {
+      const bundle = await db.exportAll();
+      download(`bolashak_ai_backup_${bundle.exportedAt.replace(/[:.]/g, '-')}.json`, JSON.stringify(bundle, null, 2));
+      db.audit.log({ type: 'admin_backup_export' });
+    } catch (e) {
+      alert('Export failed');
+    }
   };
 
   const importBackup = async (file: File, mode: 'replace' | 'merge') => {
-    const text = await file.text();
-    const bundle = JSON.parse(text);
-    db.importAll(bundle, { mode });
-    db.audit.log({ type: 'admin_backup_import', details: { mode, filename: file.name } });
-    makeRefresh();
-    alert(t('admin.backup.importDone'));
+    try {
+      const text = await file.text();
+      const bundle = JSON.parse(text);
+      await db.importAll(bundle, { mode });
+      db.audit.log({ type: 'admin_backup_import', details: { mode, filename: file.name } });
+      makeRefresh();
+      alert(t('admin.backup.importDone'));
+    } catch (e) {
+      alert('Import failed');
+    }
+  };
+
+  const clearAudit = async () => {
+    if (!confirm(t('admin.audit.confirmClear'))) return;
+    try {
+      await db.audit.clear();
+      makeRefresh();
+    } catch (e) { alert('Clear failed'); }
   };
 
   return (
@@ -191,9 +246,8 @@ const AdminPanel: React.FC = () => {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                activeTab === t.id ? 'bg-amber-500 text-slate-900 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === t.id ? 'bg-amber-500 text-slate-900 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+                }`}
             >
               {t.label}
             </button>
@@ -343,7 +397,7 @@ const AdminPanel: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {users.map(u => (
+                    {filteredUsers.map(u => (
                       <tr key={u.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-800">{u.name}</td>
                         <td className="p-3 text-slate-600">{u.email}</td>
@@ -419,11 +473,10 @@ const AdminPanel: React.FC = () => {
                 <button
                   onClick={createUser}
                   disabled={!newUserName.trim() || !newUserEmail.trim() || newUserPassword.length < 6}
-                  className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-                    !newUserName.trim() || !newUserEmail.trim() || newUserPassword.length < 6
+                  className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!newUserName.trim() || !newUserEmail.trim() || newUserPassword.length < 6
                       ? 'bg-slate-200 text-slate-400'
                       : 'bg-slate-900 text-white hover:bg-amber-500 hover:text-slate-900'
-                  }`}
+                    }`}
                 >
                   {t('admin.users.create')}
                 </button>
@@ -441,7 +494,7 @@ const AdminPanel: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">{t('admin.broadcast.subtitle')}</p>
             </div>
             <div className="px-3 py-2 bg-slate-50 rounded-xl border border-slate-100 text-xs font-black text-slate-500">
-              {t('admin.broadcast.total', { count: analytics.notificationsCount })}
+              {t('admin.broadcast.total', { count: notifications.length })}
             </div>
           </div>
 
@@ -475,11 +528,10 @@ const AdminPanel: React.FC = () => {
               <button
                 onClick={sendBroadcast}
                 disabled={!broadcastTitle.trim() || !broadcastMessage.trim()}
-                className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${
-                  !broadcastTitle.trim() || !broadcastMessage.trim()
+                className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!broadcastTitle.trim() || !broadcastMessage.trim()
                     ? 'bg-slate-200 text-slate-400'
                     : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-600/20'
-                }`}
+                  }`}
               >
                 <i className="fas fa-paper-plane mr-2"></i> {t('admin.broadcast.sendAll')}
               </button>
@@ -499,24 +551,20 @@ const AdminPanel: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">{t('admin.audit.subtitle')}</p>
             </div>
             <button
-              onClick={() => {
-                if (!confirm(t('admin.audit.confirmClear'))) return;
-                db.audit.clear();
-                makeRefresh();
-              }}
+              onClick={clearAudit}
               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-rose-600 hover:bg-slate-50"
             >
               <i className="fas fa-trash mr-2"></i> {t('admin.audit.clear')}
             </button>
           </div>
           <div className="max-h-[560px] overflow-y-auto custom-scrollbar divide-y divide-slate-50">
-            {audit.length === 0 ? (
+            {displayAudit.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <i className="fas fa-clipboard-list text-6xl mb-4"></i>
                 <p className="text-sm font-bold">{t('admin.audit.none')}</p>
               </div>
             ) : (
-              audit.map(e => (
+              displayAudit.map(e => (
                 <div key={e.id} className="p-4 hover:bg-slate-50 transition-colors">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -558,7 +606,7 @@ const AdminPanel: React.FC = () => {
               <p className="text-xs text-slate-500 mb-4">
                 {t('admin.backup.instructions')}
               </p>
-              <input ref={importFileRef} type="file" accept=".json" className="hidden" onChange={() => {}} />
+              <input ref={importFileRef} type="file" accept=".json" className="hidden" onChange={() => { }} />
               <div className="flex gap-3">
                 <button
                   onClick={() => importFileRef.current?.click()}

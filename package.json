@@ -4,26 +4,37 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"npm run server\" \"vite\"",
+    "server": "node --env-file=.env --import tsx server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "db:migrate": "node --loader ts-node/esm api/migrations.ts",
+    "db:migrate": "node --env-file=.env --loader ts-node/esm api/migrations.ts",
     "db:init": "npm run db:migrate"
   },
   "dependencies": {
     "@google/genai": "^1.39.0",
     "@neondatabase/serverless": "^0.9.5",
+    "@types/multer": "^2.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "multer": "^2.0.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^9.0.0",
     "react-router-dom": "^7.13.0",
     "recharts": "^3.7.0",
     "remark-gfm": "^4.0.0",
-    "ts-node": "^10.9.2"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

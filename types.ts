@@ -11,6 +11,7 @@ export interface User {
   joinedAt: string;
   department?: string;
   passwordHash?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Agent {

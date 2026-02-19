@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { db } from '../services/dbService';
 import { User } from '../types';
@@ -16,35 +17,65 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('password');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    if (isLogin) {
-      const user = db.users.findByEmail(email);
-      if (user) {
-        if (!verifyPassword(password, user.passwordHash)) {
-          setError(t('auth.err.invalidPassword'));
+    try {
+      if (isLogin) {
+        const user = await db.users.findByEmail(email);
+        if (user) {
+          // For now, since we don't have real backend auth with sessions in this demo yet (fully),
+          // we verify password hash client side OR we should have a /login endpoint.
+          // The current dbService.users.findByEmail just returns the user object.
+          // In a real app, we would send password to backend.
+          // Here we will simulate it by checking hash (if hash is returned).
+          // API might mock login.
+
+          // However, the `dbService.ts` implementation of `findByEmail` fetches the user.
+          // Let's assume the backend returns the user with passwordHash for now (insecure but consistent with current mocked state)
+          // OR we move login logic to backend.
+
+          // Given the instructions, I should probably stick to the existing logic but make it async.
+          if (!verifyPassword(password, user.passwordHash)) {
+            setError(t('auth.err.invalidPassword'));
+            setIsLoading(false);
+            return;
+          }
+          onLogin(user);
+        } else {
+          setError(t('auth.err.userNotFound'));
+        }
+      } else {
+        if (!name || !email) { setError(t('auth.err.fillAll')); setIsLoading(false); return; }
+        if (!password || password.length < 6) { setError(t('auth.err.passwordMin')); setIsLoading(false); return; }
+
+        const existing = await db.users.findByEmail(email);
+        if (existing) {
+          setError(t('auth.err.emailExists')); // access translation key if exists or fallback
+          setIsLoading(false);
           return;
         }
-        onLogin(user);
-      } else {
-        setError(t('auth.err.userNotFound'));
+
+        const newUser: User = {
+          id: Math.random().toString(36).substr(2, 9), // Better to use UID generator from backend or makeId
+          email,
+          name,
+          role: 'STUDENT',
+          passwordHash: hashPassword(password),
+          joinedAt: new Date().toISOString()
+        };
+        await db.users.create(newUser);
+        onLogin(newUser);
       }
-    } else {
-      if (!name || !email) return setError(t('auth.err.fillAll'));
-      if (!password || password.length < 6) return setError(t('auth.err.passwordMin'));
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        email,
-        name,
-        role: 'STUDENT',
-        passwordHash: hashPassword(password),
-        joinedAt: new Date().toISOString()
-      };
-      db.users.create(newUser);
-      onLogin(newUser);
+    } catch (e) {
+      console.error(e);
+      setError('Authentication failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,8 +83,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4 relative overflow-hidden">
       {/* Background Decor */}
       <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-500 rounded-full blur-[120px]"></div>
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-500 rounded-full blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-500 rounded-full blur-[120px]"></div>
       </div>
 
       <div className="absolute top-4 right-4 z-20">
@@ -64,7 +95,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         <div className="p-8">
           <div className="text-center mb-10">
             <div className="w-16 h-16 bg-amber-500 rounded-2xl mx-auto flex items-center justify-center text-3xl text-slate-900 shadow-xl mb-6">
-                <i className="fas fa-graduation-cap"></i>
+              <i className="fas fa-graduation-cap"></i>
             </div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">BOLASHAK AI</h1>
             <p className="text-slate-500 text-sm mt-2">{t('auth.ecosystem')}</p>
@@ -74,9 +105,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             {!isLogin && (
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">{t('auth.fullName')}</label>
-                <input 
-                  type="text" 
-                  className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium" 
+                <input
+                  type="text"
+                  className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium"
                   placeholder={t('auth.yourName')}
                   value={name}
                   onChange={e => setName(e.target.value)}
@@ -85,9 +116,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             )}
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">Email</label>
-              <input 
-                type="email" 
-                className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium" 
+              <input
+                type="email"
+                className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium"
                 placeholder="university@bolashak.kz"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
@@ -95,9 +126,9 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
             </div>
             <div>
               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-1 ml-1">{t('auth.password')}</label>
-              <input 
-                type="password" 
-                className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium" 
+              <input
+                type="password"
+                className="w-full px-5 py-3 rounded-xl bg-slate-50 border-none focus:ring-2 ring-amber-500/20 outline-none text-sm transition-all font-medium"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
@@ -106,28 +137,30 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
             {error && <p className="text-xs font-bold text-rose-500 mt-2 px-1">{error}</p>}
 
-            <button 
-              type="submit" 
-              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20"
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 flex justify-center items-center gap-2"
             >
+              {isLoading && <i className="fas fa-circle-notch fa-spin"></i>}
               {isLogin ? t('auth.login') : t('auth.createAccount')}
             </button>
           </form>
 
           <div className="mt-8 text-center">
-            <button 
-              onClick={() => setIsLogin(!isLogin)}
+            <button
+              onClick={() => { setIsLogin(!isLogin); setError(''); }}
               className="text-xs font-bold text-slate-400 hover:text-amber-600 transition-colors uppercase tracking-widest"
             >
               {isLogin ? t('auth.noAccount') : t('auth.haveAccount')}
             </button>
           </div>
         </div>
-        
+
         <div className="bg-slate-50 p-6 text-center border-t border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                {t('auth.footer')}
-            </p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {t('auth.footer')}
+          </p>
         </div>
       </div>
     </div>
